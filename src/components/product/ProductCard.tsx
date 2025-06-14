@@ -6,7 +6,6 @@ import { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { Star, ShoppingCart, Heart, Eye } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
-import AddToCartButton from './AddToCartButton';
 
 interface ProductCardProps {
   product: Product;
@@ -97,15 +96,21 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                 <div className="flex items-center gap-2">
                   <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                     <Heart className="w-5 h-5" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                  </button>                  <button className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                     <Eye className="w-5 h-5" />
-                  </button>                  <AddToCartButton 
-                    product={product} 
-                    showQuantitySelector={false}
-                    buttonText="Thêm vào giỏ"
-                    className="flex-shrink-0"
-                  />
+                  </button>
+                  <button 
+                    onClick={handleAddToCart}
+                    disabled={product.stock <= 0}
+                    className={`${
+                      product.stock <= 0 
+                        ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    } px-4 py-2 rounded-lg transition-colors flex items-center gap-2 flex-shrink-0`}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    {product.stock <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -187,16 +192,21 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             ))}
           </div>
         )}
-        
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
             {formatPrice(product.price)}
-          </span>          <AddToCartButton 
-            product={product} 
-            showQuantitySelector={false}
-            buttonText=""
-            className="ml-auto"
-          />
+          </span>
+          <button 
+            onClick={handleAddToCart}
+            disabled={product.stock <= 0}
+            className={`${
+              product.stock <= 0 
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            } p-2 rounded-lg transition-colors group`}
+          >
+            <ShoppingCart className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          </button>
         </div>
       </div>
     </div>

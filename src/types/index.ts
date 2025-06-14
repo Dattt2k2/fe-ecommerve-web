@@ -5,14 +5,22 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
   category: string;
+  brand?: string;
   image: string;
   images?: string[];
   stock: number;
   rating: number;
   reviews: number;
+  sold?: number;
   tags?: string[];
   featured?: boolean;
+  isActive?: boolean;
+  isFeatured?: boolean;
+  specifications?: Record<string, string>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem {
