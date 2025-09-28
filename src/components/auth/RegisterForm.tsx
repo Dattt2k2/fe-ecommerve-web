@@ -4,8 +4,13 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterForm() {
+  const { register } = useAuth();
+  const router = useRouter();
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +23,7 @@ export default function RegisterForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -76,21 +82,25 @@ export default function RegisterForm() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
     setLoading(true);
+    setSubmitError('');
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      console.log('Register data:', formData);
-      // Handle successful registration here
-    } catch (error) {
-      console.error('Registration error:', error);
+      await register({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password
+      });
+      // Redirect to dashboard or previous page
+      router.push('/');
+    } catch (error: any) {
+      setSubmitError(error.message || 'Đăng ký thất bại');
     } finally {
       setLoading(false);
     }
@@ -105,6 +115,13 @@ export default function RegisterForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Submit Error */}
+          {submitError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>
+            </div>
+          )}
+
           {/* Name Field */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

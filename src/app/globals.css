@@ -1,8 +1,40 @@
+/* Material Icons */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --color-primary: #ff5722; /* Shopee-like orange */
+  --surface: #ffffff;
+  --surface-muted: #f8f8f8;
+}
+
+/* Shopee-like header helpers */
+.shopee-topbar {
+  background: linear-gradient(90deg, #ff5a3c, #ff7a2b);
+  color: white;
+}
+.shopee-search-input {
+  background: white;
+  border-radius: 9999px;
+}
+.shopee-search-btn {
+  background: #ff5722;
+  color: white;
+  border-radius: 0.5rem;
+}
+
+/* Material icon style inside inputs */
+.material-icons.inside-input {
+  font-family: 'Material Icons';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #9ca3af;
+  pointer-events: none;
 }
 
 .dark {

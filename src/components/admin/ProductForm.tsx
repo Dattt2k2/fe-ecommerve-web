@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Upload, X, Plus, Minus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
+import { useProduct, useCreateProduct, useUpdateProduct } from '@/hooks/useApi';
 
 interface ProductFormProps {
   productId?: string;
@@ -54,6 +56,16 @@ const brands = [
 ];
 
 export default function ProductForm({ productId }: ProductFormProps) {
+  const router = useRouter();
+  const isEdit = !!productId;
+  
+  // API hooks
+  const { data: productData, loading: productLoading } = useProduct(productId || '');
+  const { mutate: createProduct, loading: createLoading } = useCreateProduct();
+  const { mutate: updateProduct, loading: updateLoading } = useUpdateProduct();
+  
+  const isLoading = createLoading || updateLoading;
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -73,43 +85,33 @@ export default function ProductForm({ productId }: ProductFormProps) {
     }
   });
 
-  const [newTag, setNewTag] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Mock data loading for edit mode
+  const [newTag, setNewTag] = useState('');  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Load product data for edit mode
   useEffect(() => {
-    if (productId) {
-      // In a real app, you would fetch the product data here
-      // For now, we'll use mock data
+    if (isEdit && productData) {
+      const product = (productData as { product: Product }).product;
       setFormData({
-        name: 'iPhone 15 Pro',
-        description: 'iPhone 15 Pro với chip A17 Pro mạnh mẽ và camera 48MP tiên tiến.',
-        price: 28990000,
-        category: 'Điện thoại',
-        brand: 'Apple',
-        stock: 50,
-        images: [
-          'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=500',
-          'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=500'
-        ],
-        specifications: [
-          { key: 'Màn hình', value: '6.1 inch Super Retina XDR' },
-          { key: 'Chip', value: 'A17 Pro' },
-          { key: 'Camera', value: '48MP + 12MP + 12MP' },
-          { key: 'Pin', value: '3274mAh' }
-        ],
-        tags: ['flagship', 'camera', '5g'],
-        isActive: true,
-        isFeatured: true,
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || 0,
+        category: product.category || '',
+        brand: product.brand || '',
+        stock: product.stock || 0,
+        images: product.images || [product.image || ''],
+        specifications: Array.isArray(product.specifications) 
+          ? product.specifications 
+          : Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value: String(value) })) || [{ key: '', value: '' }],
+        tags: product.tags || [],
+        isActive: product.isActive !== false,
+        isFeatured: product.isFeatured || false,
         seo: {
-          title: 'iPhone 15 Pro - Điện thoại cao cấp 2024',
-          description: 'Mua iPhone 15 Pro chính hãng với chip A17 Pro mạnh mẽ, camera 48MP và thiết kế titanium sang trọng.',
-          keywords: 'iphone 15 pro, apple, điện thoại, smartphone'
-        }
+          title: product.name || '',
+          description: product.description || '',
+          keywords: product.tags?.join(', ') || '',
+        },
       });
     }
-  }, [productId]);
+  }, [isEdit, productData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -208,27 +210,43 @@ export default function ProductForm({ productId }: ProductFormProps) {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
-
-    setIsSubmitting(true);
     
     try {
-      // In a real app, you would submit to an API
-      console.log('Submitting product:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert(productId ? 'Sản phẩm đã được cập nhật!' : 'Sản phẩm đã được thêm!');
-      
-      // Reset form if adding new product
-      if (!productId) {
+      const productPayload = {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        category: formData.category,
+        brand: formData.brand,
+        stock: formData.stock,
+        image: formData.images[0] || '',
+        images: formData.images,
+        specifications: formData.specifications
+          .filter(spec => spec.key && spec.value)
+          .reduce((acc, spec) => {
+            acc[spec.key] = spec.value;
+            return acc;
+          }, {} as Record<string, string>),
+        tags: formData.tags,
+        isActive: formData.isActive,
+        isFeatured: formData.isFeatured,
+        rating: 0,
+        reviews: 0,
+      };
+
+      if (isEdit && productId) {
+        await updateProduct({ id: productId, data: productPayload });
+        alert('Sản phẩm đã được cập nhật!');
+      } else {
+        await createProduct(productPayload);
+        alert('Sản phẩm đã được thêm!');
+        // Reset form
         setFormData({
           name: '',
           description: '',
@@ -244,14 +262,16 @@ export default function ProductForm({ productId }: ProductFormProps) {
           seo: {
             title: '',
             description: '',
-            keywords: ''
-          }
+            keywords: ''          }
         });
       }
-    } catch (error) {
-      alert('Có lỗi xảy ra khi lưu sản phẩm!');
-    } finally {
-      setIsSubmitting(false);
+      
+      // Redirect back to products list
+      router.push('/admin/products');
+      
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      alert('Có lỗi xảy ra: ' + (error.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -594,13 +614,12 @@ export default function ProductForm({ productId }: ProductFormProps) {
             className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Hủy
-          </button>
-          <button
+          </button>          <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isLoading}
             className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
           >
-            {isSubmitting ? 'Đang lưu...' : (productId ? 'Cập nhật' : 'Thêm sản phẩm')}
+            {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Thêm sản phẩm')}
           </button>
         </div>
       </form>

@@ -1,0 +1,75 @@
+import Link from 'next/link'
+
+type Product = {
+  id: string
+  title: string
+  price: number
+  stock?: number
+  thumbnail?: string
+}
+
+async function fetchSellerProducts(): Promise<Product[]> {
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  const url = `${base}/api/seller/products/user`
+
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error(`Failed to fetch products: ${res.status}`)
+  }
+
+  const data = await res.json()
+  // Expecting data to be an array; backend shape may vary
+  if (Array.isArray(data)) return data as Product[]
+  if (Array.isArray(data.data)) return data.data as Product[]
+  return []
+}
+
+export default async function SellerProducts() {
+  let products: Product[] = []
+  let error: string | null = null
+
+  try {
+    products = await fetchSellerProducts()
+  } catch (err: any) {
+    error = err?.message || 'Lỗi khi tải sản phẩm'
+  }
+
+  return (
+    <div className="text-white">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-white">Kho hàng</h2>
+        <Link href="/seller/inventory/new" className="px-4 py-2 bg-orange-500 text-white rounded">Thêm hàng</Link>
+      </div>
+
+      {error ? (
+        <div className="bg-red-50 text-red-800 p-4 rounded mb-4">{error}</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map((p) => (
+            <div key={p.id} className="bg-white/5 border border-white/10 rounded p-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-gray-800 rounded overflow-hidden flex items-center justify-center">
+                  {p.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-sm text-gray-400">No image</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-white">{p.title}</h3>
+                  <p className="text-sm text-gray-300">{p.stock ?? 0} trong kho</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-semibold text-white">{p.price.toLocaleString()}₫</div>
+                  <Link href={`/seller/products/${p.id}`} className="text-sm text-orange-300">Sửa</Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+

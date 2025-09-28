@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Plus, 
   Search, 
-  Filter, 
   Edit, 
   Trash2, 
   Eye, 
@@ -16,83 +15,72 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types';
-import { getAllProducts } from '@/lib/data';
+import { useProducts, useDeleteProduct, useProductCategories } from '@/hooks/useApi';
 import { formatPrice } from '@/lib/utils';
 
+interface ProductsResponse {
+  data?: Product[];
+  products?: Product[];
+  total?: number;
+  page?: number;
+  limit?: number;
+}
+
 export default function ProductManagement() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    filterAndSortProducts();
-  }, [products, searchTerm, selectedCategory, sortBy, sortOrder]);
-
-  const loadProducts = async () => {
-    try {
-      const data = await getAllProducts();
-      setProducts(data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
-      setLoading(false);
-    }
+  // API params for products
+  const apiParams = {
+    search: searchTerm || undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    sortBy,
+    sortOrder,
+    page: currentPage,
+    limit: itemsPerPage
   };
 
-  const filterAndSortProducts = () => {
-    let filtered = products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-      
-      return matchesSearch && matchesCategory;
-    });
+  // Use API hooks
+  const { 
+    data: productsResponse, 
+    loading, 
+    error, 
+    refetch 
+  } = useProducts(apiParams);
 
-    // Sort products
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'price':
-          aValue = a.price;
-          bValue = b.price;
-          break;
-        case 'stock':
-          aValue = a.stock;
-          bValue = b.stock;
-          break;
-        case 'rating':
-          aValue = a.rating;
-          bValue = b.rating;
-          break;
-        default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-      }
+  const { 
+    data: categoriesData, 
+    loading: categoriesLoading 
+  } = useProductCategories();
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
+  const { 
+    mutate: deleteProduct, 
+    loading: deleteLoading 
+  } = useDeleteProduct();  // Extract data from API response with proper typing
+  const apiResponse = productsResponse as ProductsResponse;
+  const products: Product[] = apiResponse?.data || apiResponse?.products || [];
+  const totalProducts = apiResponse?.total || products.length || 0;
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
+  const categories =
+    categoriesData && typeof categoriesData === 'object' && 'categories' in categoriesData
+      ? (categoriesData.categories as string[])
+      : [];
 
-    setFilteredProducts(filtered);
-  };
-
-  const handleDeleteProduct = (id: string) => {
+  // Handle delete product
+  const handleDeleteProduct = async (id: string) => {
     if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      setProducts(prev => prev.filter(product => product.id !== id));
+      try {
+        await deleteProduct(id);
+        // Refetch data after successful delete
+        refetch();
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Có lỗi xảy ra khi xóa sản phẩm');
+      }
     }
   };
 
@@ -107,7 +95,6 @@ export default function ProductManagement() {
     if (stock < 10) return 'Sắp hết';
     return 'Còn hàng';
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -120,6 +107,25 @@ export default function ProductManagement() {
                 <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Có lỗi xảy ra</h3>
+            <p className="text-red-600 dark:text-red-500 mt-2">{error}</p>
+            <button
+              onClick={refetch}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Thử lại
+            </button>
           </div>
         </div>
       </div>
@@ -183,18 +189,19 @@ export default function ProductManagement() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 />
-              </div>
-
-              {/* Category Filter */}
+              </div>              {/* Category Filter */}
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                disabled={categoriesLoading}
               >
                 <option value="all">Tất cả danh mục</option>
-                <option value="electronics">Điện tử</option>
-                <option value="fashion">Thời trang</option>
-                <option value="home">Gia dụng</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
 
               {/* Sort By */}
@@ -218,12 +225,33 @@ export default function ProductManagement() {
                 <option value="asc">Tăng dần</option>
                 <option value="desc">Giảm dần</option>
               </select>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
+            </div>            <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Hiển thị {filteredProducts.length} trong tổng số {products.length} sản phẩm
+                Hiển thị {products.length} trong tổng số {totalProducts} sản phẩm
               </p>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Trước
+                  </button>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Sau
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -255,9 +283,8 @@ export default function ProductManagement() {
                       Thao tác
                     </th>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((product) => (
+                </thead>                <tbody>
+                  {products.map((product: Product) => (
                     <tr key={product.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="py-4 px-6">
                         <div className="flex items-center">
@@ -322,9 +349,7 @@ export default function ProductManagement() {
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {filteredProducts.length === 0 && (
+            </div>            {products.length === 0 && !loading && (
               <div className="text-center py-12">
                 <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">

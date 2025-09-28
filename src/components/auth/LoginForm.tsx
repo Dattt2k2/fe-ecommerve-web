@@ -4,8 +4,13 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
+  const { login } = useAuth();
+  const router = useRouter();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -13,6 +18,7 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -47,21 +53,20 @@ export default function LoginForm() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
     setLoading(true);
+    setSubmitError('');
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Login data:', formData);
-      // Handle successful login here
-    } catch (error) {
-      console.error('Login error:', error);
+      await login(formData.email, formData.password);
+      // Redirect to dashboard or previous page
+      router.push('/');
+    } catch (error: any) {
+      setSubmitError(error.message || 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }
@@ -75,6 +80,13 @@ export default function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Submit Error */}
+          {submitError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-red-600 dark:text-red-400 text-sm">{submitError}</p>
+            </div>
+          )}
+
           {/* Email Field */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

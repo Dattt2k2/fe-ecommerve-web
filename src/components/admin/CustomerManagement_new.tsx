@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { User, Search, Mail, Phone, Calendar, ShoppingBag, Eye, Ban, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Search, Mail, Phone, Calendar, ShoppingBag, Eye, Ban, CheckCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { useUsers, useDeleteUser, useUpdateUser } from '@/hooks/useApi';
+import { adminAPI } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 
 interface Customer {
@@ -21,92 +21,149 @@ interface Customer {
   role?: string;
 }
 
-interface UsersResponse {
-  data?: Customer[];
-  users?: Customer[];
-  total?: number;
-  page?: number;
-  limit?: number;
-}
+// Mock data fallback
+const mockCustomers: Customer[] = [
+  {
+    id: '1',
+    name: 'Nguyễn Văn A',
+    email: 'nguyenvana@email.com',
+    phone: '0123456789',
+    status: 'active',
+    totalOrders: 15,
+    totalSpent: 2500000,
+    createdAt: '2024-01-15',
+    role: 'customer'
+  },
+  {
+    id: '2',
+    name: 'Trần Thị B',
+    email: 'tranthib@email.com',
+    phone: '0987654321',
+    status: 'active',
+    totalOrders: 8,
+    totalSpent: 1200000,
+    createdAt: '2024-02-20',
+    role: 'customer'
+  },
+  {
+    id: '3',
+    name: 'Lê Văn C',
+    email: 'levanc@email.com',
+    status: 'inactive',
+    totalOrders: 3,
+    totalSpent: 450000,
+    createdAt: '2024-03-10',
+    role: 'customer'
+  }
+];
 
 export default function CustomerManagement() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const itemsPerPage = 10;
 
-  // API params for users
-  const apiParams = {
-    search: searchTerm || undefined,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-    sortBy,
-    sortOrder,
-    page: currentPage,
-    limit: itemsPerPage,
-    role: 'customer' // Only get customers, not admins
+  // Fetch customers
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+        // Try to fetch from API
+      const response = await adminAPI.getCustomers();
+      
+      console.log('Customers API response:', response);
+        // Handle different response formats
+      const customerData = response?.customers || [];
+      // Convert User to Customer format
+      const convertedCustomers = customerData.map((user: any) => ({
+        ...user,
+        status: user.status || 'active' // Default status if not provided
+      }));
+      setCustomers(convertedCustomers);
+      
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Không thể tải danh sách khách hàng. Sử dụng dữ liệu mẫu.');
+      
+      // Fallback to mock data
+      setCustomers(mockCustomers);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Use API hooks
-  const { 
-    data: usersResponse, 
-    loading, 
-    error, 
-    refetch 
-  } = useUsers(apiParams);
+  // Load customers on component mount and when filters change
+  useEffect(() => {
+    fetchCustomers();
+  }, [searchTerm, statusFilter, sortBy, sortOrder, currentPage]);  // Filter and sort customers locally (for better UX)
+  const filteredCustomers = customers.filter(customer => {
+    const matchesSearch = !searchTerm || 
+      customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
-  const { 
-    mutate: deleteUser, 
-    loading: deleteLoading 
-  } = useDeleteUser();
-
-  const { 
-    mutate: updateUser, 
-    loading: updateLoading 
-  } = useUpdateUser();
-
-  // Extract data from API response with proper typing
-  const apiResponse = usersResponse as any;
-  const rawUsers: Customer[] = apiResponse?.data || apiResponse?.users || [];
-  const customers: Customer[] = rawUsers.map((user: any) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    joinDate: user.joinDate,
-    totalOrders: user.totalOrders,
-    totalSpent: user.totalSpent,
-    status: user.status ?? 'active',
-    lastOrder: user.lastOrder,
-    avatar: user.avatar,
-    createdAt: user.createdAt,
-    role: user.role,
-  }));
-  const totalCustomers = apiResponse?.total || customers.length || 0;
+  // Pagination
+  const totalCustomers = filteredCustomers.length;
   const totalPages = Math.ceil(totalCustomers / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCustomers = filteredCustomers.slice(startIndex, endIndex);
 
   // Handle update customer status
   const handleUpdateStatus = async (id: string, newStatus: Customer['status']) => {
     try {
-      await updateUser({ id, data: { status: newStatus } });
-      refetch();
+      setUpdateLoading(true);
+      
+      await adminAPI.updateCustomer(id, { status: newStatus } as any);
+      
+      // Update local state
+      setCustomers(prev => 
+        prev.map(customer => 
+          customer.id === id ? { ...customer, status: newStatus } : customer
+        )
+      );
+      
+      console.log(`Customer ${id} status updated to ${newStatus}`);
+      
     } catch (error) {
       console.error('Error updating customer status:', error);
       alert('Có lỗi xảy ra khi cập nhật trạng thái khách hàng');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
   // Handle delete customer
   const handleDeleteCustomer = async (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa khách hàng này?')) {
-      try {
-        await deleteUser(id);
-        refetch();
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        alert('Có lỗi xảy ra khi xóa khách hàng');
-      }
+    if (!confirm('Bạn có chắc chắn muốn xóa khách hàng này?')) {
+      return;
+    }
+    
+    try {
+      setUpdateLoading(true);
+      
+      await adminAPI.deleteCustomer(id);
+      
+      // Update local state
+      setCustomers(prev => prev.filter(customer => customer.id !== id));
+      
+      console.log(`Customer ${id} deleted`);
+      
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      alert('Có lỗi xảy ra khi xóa khách hàng');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -167,7 +224,7 @@ export default function CustomerManagement() {
             <h3 className="text-red-800 dark:text-red-400 font-medium">Có lỗi xảy ra</h3>
             <p className="text-red-600 dark:text-red-500 mt-2">{error}</p>
             <button
-              onClick={refetch}
+              onClick={fetchCustomers}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
               Thử lại
@@ -181,8 +238,7 @@ export default function CustomerManagement() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
+        <div className="max-w-7xl mx-auto">          {/* Header */}
           <div className="mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -201,6 +257,16 @@ export default function CustomerManagement() {
                   </p>
                 </div>
               </div>
+              
+              {/* Refresh Button */}
+              <button
+                onClick={fetchCustomers}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Làm mới</span>
+              </button>
             </div>
           </div>
 
@@ -314,7 +380,7 @@ export default function CustomerManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.map((customer: Customer) => (
+                  {currentCustomers.map((customer: Customer) => (
                     <tr key={customer.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="py-4 px-6">
                         <div className="flex items-center">
@@ -404,7 +470,7 @@ export default function CustomerManagement() {
               </table>
             </div>
 
-            {customers.length === 0 && !loading && (
+            {currentCustomers.length === 0 && !loading && (
               <div className="text-center py-12">
                 <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">

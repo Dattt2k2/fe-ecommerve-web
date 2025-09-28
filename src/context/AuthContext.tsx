@@ -2,7 +2,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@/types';
+import { authAPI } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +12,7 @@ interface AuthContextType {
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  isAuthenticated: boolean;
 }
 
 interface RegisterData {
@@ -24,25 +27,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Check if user is logged in on app start
     checkAuthStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      // Check localStorage or make API call to verify token
-      const token = localStorage.getItem('token');
-      if (token) {
-        // Simulate API call to get user data
-        const userData = {
-          id: '1',
-          email: 'user@example.com',
-          name: 'Người dùng',
-          role: 'user' as const,
-        };
-        setUser(userData);
+      // Check if user data exists in localStorage
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+        setLoading(false);
+        return;
+      }
+
+      // If no local user found, try to fetch profile from server (supports cookie-based auth)
+      try {
+        const profile = await authAPI.getProfile();
+        if (profile && (profile as any).user) {
+          setUser((profile as any).user);
+          localStorage.setItem('user', JSON.stringify((profile as any).user));
+        }
+      } catch (err) {
+        // Not logged in on server or profile fetch failed; ignore
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -53,53 +64,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      // Simulate API call
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      if (response.ok) {
-        const { user, token } = await response.json();
-        localStorage.setItem('token', token);
+      setLoading(true);
+      const response = await authAPI.login(email, password);
+
+      // API returns { message, email, role, uid, access_token, refresh_token }
+      if (response.access_token) {
+        const user = {
+          id: response.uid,
+          email: response.email,
+          name: response.email.split('@')[0], // Temporary name from email
+          role: response.role as 'user' | 'admin',
+        };
         setUser(user);
-      } else {
-        throw new Error('Login failed');
+        localStorage.setItem('user', JSON.stringify(user));
+
+        // Save tokens
+        localStorage.setItem('auth_token', response.access_token);
+        if (response.refresh_token) {
+          localStorage.setItem('refresh_token', response.refresh_token);
+        }
+
+        // Redirect after successful login
+        try {
+          router.push('/');
+        } catch (e) {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        }
       }
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      throw new Error(error.message || 'Đăng nhập thất bại');
+    } finally {
+      setLoading(false);
     }
   };
 
   const register = async (userData: RegisterData) => {
     try {
-      // Simulate API call
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      });
-      
-      if (response.ok) {
-        const { user, token } = await response.json();
-        localStorage.setItem('token', token);
-        setUser(user);
-      } else {
-        throw new Error('Registration failed');
+      setLoading(true);
+      const response = await authAPI.register(userData);
+
+      // Assuming your API returns { user: User, token: string }
+      if (response.user) {
+        setUser(response.user);
+        localStorage.setItem('user', JSON.stringify(response.user));
+
+        // Save token if provided
+        if (response.token) {
+          localStorage.setItem('auth_token', response.token);
+        }
       }
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error('Register failed:', error);
+      throw new Error(error.message || 'Đăng ký thất bại');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      localStorage.removeItem('user');
+      localStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_token');
+      setUser(null);
+    }
   };
 
+  const isAuthenticated = !!user;
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

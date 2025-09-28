@@ -1,96 +1,89 @@
 // src/components/layout/Header.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { User as UserType } from '@/types';
 import Link from 'next/link';
-import { ShoppingCart, User, Search, Menu, X } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, Search, Menu, X } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useCart } from '@/context/CartContext';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { itemCount } = useCart();
+  const { user, logout, isAuthenticated } = useAuth();
+
+  // Fallback: read user from localStorage if auth context hasn't hydrated yet
+  const [localUser, setLocalUser] = useState<UserType | null>(null);
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem('user');
+      if (u) {
+        setLocalUser(JSON.parse(u));
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }, []);
+
+  // For display, prefer context user, then localStorage fallback
+  const displayUser = user || localUser;
+  useEffect(() => {
+    console.debug('Header auth state:', { user, localUser, isAuthenticated });
+  }, [user, localUser, isAuthenticated]);
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            ShopVN
-          </Link>
+    <header className="sticky top-0 z-50">
+      {/* Top gradient bar */}
+      <div className="shopee-topbar py-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-sm flex justify-between items-center">
+          <div className="flex items-center space-x-4 text-white">
+            <a href="/seller" target="_blank" rel="noopener noreferrer" className="hidden sm:inline hover:underline">Kênh Người Bán</a>
+            <span className="hidden sm:inline">Tải ứng dụng</span>
+            <span className="hidden sm:inline">Kết nối</span>
+          </div>
+          <div className="flex items-center space-x-4 text-white">
+            <span className="hidden sm:inline">Thông Báo</span>
+            <span className="hidden sm:inline">Hỗ Trợ</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-              />
+      {/* Main header */}
+      <div className="bg-gradient-to-r from-primary to-orange-400 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center space-x-6">
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/" className="text-2xl font-bold text-white">Ecommo</Link>
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center max-w-3xl mx-auto">
+              <div className="relative flex-1">
+                <input type="text" placeholder="Tìm sản phẩm, thương hiệu, và tên shop" className="shopee-search-input w-full px-6 py-3 pr-12" />
+                <i className="material-icons inside-input">search</i>
+              </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/products" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Sản phẩm
-            </Link>
-            <Link href="/categories" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Danh mục
-            </Link>
-            <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Về chúng tôi
-            </Link>
-          </nav>
-
-          {/* User Actions */}
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
-            
-            <Link href="/auth/login" className="hidden md:flex items-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              <User className="w-5 h-5 mr-1" />
-              Đăng nhập
-            </Link>
-              <Link href="/cart" className="relative">
-              <ShoppingCart className="w-6 h-6 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" />
+          <div className="flex items-center space-x-4 text-white">
+            <Link href="/cart" className="relative">
+              <ShoppingCart className="w-6 h-6" />
               {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {itemCount}
-                </span>
+                <span className="absolute -top-2 -right-2 bg-white text-primary text-xs rounded-full w-5 h-5 flex items-center justify-center">{itemCount}</span>
               )}
             </Link>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden text-gray-700 dark:text-gray-300"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {isAuthenticated && displayUser ? (
+              <div className="hidden sm:flex items-center space-x-2">
+                <UserIcon className="w-6 h-6" />
+                <span className="text-white">{displayUser?.name || displayUser?.email}</span>
+              </div>
+            ) : (
+              <Link href="/auth/login" className="text-white hidden sm:inline">Đăng nhập</Link>
+            )}
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-                />
-              </div>
-              <Link href="/products" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Sản phẩm</Link>
-              <Link href="/categories" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Danh mục</Link>
-              <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Về chúng tôi</Link>
-              <Link href="/auth/login" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Đăng nhập</Link>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

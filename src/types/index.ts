@@ -91,3 +91,44 @@ export interface Coupon {
   expiresAt: Date;
   isActive: boolean;
 }
+
+// API Response Types
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  user: User;
+  token: string;
+}
+
+export interface LoginResponse {
+  message: string;
+  email: string;
+  role: string;
+  uid: string;
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  user: User;
+  token?: string;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}

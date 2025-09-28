@@ -19,10 +19,40 @@ import {
   ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAdminDashboard } from '@/hooks/useApi';
+import { formatPrice } from '@/lib/utils';
+
+interface DashboardStats {
+  totalRevenue?: number;
+  totalOrders?: number;
+  totalProducts?: number;
+  totalCustomers?: number;
+  revenueChange?: number;
+  ordersChange?: number;
+  productsChange?: number;
+  customersChange?: number;
+}
+
+interface DashboardResponse {
+  stats?: DashboardStats;
+  recentOrders?: any[];
+  topProducts?: any[];
+}
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Use API hook for dashboard data
+  const { 
+    data: dashboardData, 
+    loading, 
+    error 
+  } = useAdminDashboard();
+
+  const apiResponse = dashboardData as DashboardResponse;
+  const stats = apiResponse?.stats || {};
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/admin' },
     { id: 'products', label: 'Sản phẩm', icon: Package, href: '/admin/products' },
@@ -32,38 +62,70 @@ export default function AdminDashboard() {
     { id: 'settings', label: 'Cài đặt', icon: Settings, href: '/admin/settings' },
   ];
 
-  const stats = [
+  const dashboardStats = [
     {
       title: 'Tổng doanh thu',
-      value: '2,847,500,000₫',
-      change: '+12.5%',
-      changeType: 'positive',
+      value: formatPrice(stats.totalRevenue || 0),
+      change: stats.revenueChange ? `${stats.revenueChange > 0 ? '+' : ''}${stats.revenueChange}%` : '+0%',
+      changeType: (stats.revenueChange || 0) >= 0 ? 'positive' : 'negative',
       icon: DollarSign,
     },
     {
       title: 'Đơn hàng',
-      value: '1,245',
-      change: '+8.2%',
-      changeType: 'positive',
+      value: (stats.totalOrders || 0).toLocaleString(),
+      change: stats.ordersChange ? `${stats.ordersChange > 0 ? '+' : ''}${stats.ordersChange}%` : '+0%',      changeType: (stats.ordersChange || 0) >= 0 ? 'positive' : 'negative',
       icon: ShoppingBag,
     },
     {
       title: 'Sản phẩm',
-      value: '89',
-      change: '+3',
-      changeType: 'positive',
+      value: (stats.totalProducts || 0).toLocaleString(),
+      change: stats.productsChange ? `${stats.productsChange > 0 ? '+' : ''}${stats.productsChange}%` : '+0%',
+      changeType: (stats.productsChange || 0) >= 0 ? 'positive' : 'negative',
       icon: Package2,
     },
     {
       title: 'Khách hàng',
-      value: '2,847',
-      change: '+15.3%',
-      changeType: 'positive',
+      value: (stats.totalCustomers || 0).toLocaleString(),
+      change: stats.customersChange ? `${stats.customersChange > 0 ? '+' : ''}${stats.customersChange}%` : '+0%',
+      changeType: (stats.customersChange || 0) >= 0 ? 'positive' : 'negative',
       icon: Users,
     },
   ];
 
-  const recentOrders = [
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Có lỗi xảy ra</h3>
+            <p className="text-red-600 dark:text-red-500 mt-2">{error}</p>
+          </div>        </div>
+      </div>
+    );
+  }
+
+  const recentOrders = apiResponse?.recentOrders || [
     {
       id: '#ORD-001',
       customer: 'Nguyễn Văn A',
@@ -247,11 +309,9 @@ export default function AdminDashboard() {
                 Thống kê
               </Link>
             </div>
-          </div>
-
-          {/* Stats Grid */}
+          </div>          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => {
+            {dashboardStats.map((stat, index) => {
               const Icon = stat.icon;
               return (
                 <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
