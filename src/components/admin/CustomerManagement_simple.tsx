@@ -86,7 +86,6 @@ export default function CustomerManagement() {
           setCustomers(mockCustomers);
         }
       } catch (apiError) {
-        console.log('API failed, using mock data:', apiError);
         setCustomers(mockCustomers);
       }
     } catch (err: any) {

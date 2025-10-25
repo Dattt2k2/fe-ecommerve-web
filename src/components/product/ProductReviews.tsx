@@ -1,60 +1,159 @@
 'use client';
 
-import { useState } from 'react';
-import { Star, ThumbsUp, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Star, ThumbsUp, MessageCircle, AlertCircle } from 'lucide-react';
 import { Review } from '@/types';
+import { useRouter } from 'next/navigation';
+import { reviewsAPI } from '@/lib/api';
 
 interface ProductReviewsProps {
   productId: string;
 }
 
-// Mock reviews data
-const mockReviews: Review[] = [
-  {
-    id: '1',
-    productId: '1',
-    userId: '1',
-    userName: 'Nguyễn Văn A',
-    rating: 5,
-    comment: 'Sản phẩm rất tuyệt vời, chất lượng tốt, giao hàng nhanh. Rất hài lòng với mua hàng này!',
-    createdAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    productId: '1',
-    userId: '2',
-    userName: 'Trần Thị B',
-    rating: 4,
-    comment: 'Sản phẩm ổn, đúng như mô tả. Giá cả hợp lý. Sẽ mua lại lần sau.',
-    createdAt: new Date('2024-01-10'),
-  },
-  {
-    id: '3',
-    productId: '1',
-    userId: '3',
-    userName: 'Lê Văn C',
-    rating: 5,
-    comment: 'Chất lượng tuyệt vời, đáng tiền. Dịch vụ khách hàng rất tốt.',
-    createdAt: new Date('2024-01-05'),
-  },
-];
+interface ReviewData {
+  id: string;
+  product_id: string;
+  user_id: string;
+  user_name?: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
 
 export default function ProductReviews({ productId }: ProductReviewsProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'reviews' | 'write'>('reviews');
+  const [reviews, setReviews] = useState<ReviewData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newReview, setNewReview] = useState({
     rating: 5,
+    title: '',
     comment: '',
   });
 
-  const reviews = mockReviews.filter(review => review.productId === productId);
+  // Check authentication status
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    setIsAuthenticated(!!token);
+  }, []);
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const data = await reviewsAPI.getReviews(productId);
+        setReviews(data.reviews || data.data || []);
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+        
+        // Parse error to check for 401 - don't show error for unauthenticated users
+        try {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          const errorData = JSON.parse(errorMessage);
+          
+          if (errorData.status === 401) {
+            // Not authenticated - just show empty reviews, no error
+            setReviews([]);
+            setError(null);
+            return;
+          }
+        } catch {
+          // Not a JSON error, continue with generic error
+        }
+        
+        setError('Không thể tải đánh giá. Vui lòng thử lại sau.');
+        setReviews([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, [productId]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the review to your API
-    console.log('Submitting review:', newReview);
-    // Reset form
-    setNewReview({ rating: 5, comment: '' });
-    setActiveTab('reviews');
+    setSubmitError(null);
+
+    // Check authentication
+    if (!isAuthenticated) {
+      setSubmitError('Bạn cần đăng nhập để đánh giá sản phẩm');
+      return;
+    }
+
+    if (!newReview.comment.trim()) {
+      setSubmitError('Vui lòng nhập nhận xét của bạn');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const token = localStorage.getItem('auth_token');
+
+      const data = await reviewsAPI.createReview(productId, {
+        rating: newReview.rating,
+        title: newReview.title || 'Đánh giá sản phẩm',
+        body_review: newReview.comment,
+      });
+
+      // Success - add new review to list
+      const newReviewData: ReviewData = {
+        id: data.id || Date.now().toString(),
+        product_id: productId,
+        user_id: data.user_id || '',
+        user_name: data.user_name || 'Bạn',
+        rating: newReview.rating,
+        comment: newReview.comment,
+        created_at: new Date().toISOString(),
+      };
+      
+      setReviews([newReviewData, ...reviews]);
+      setNewReview({ rating: 5, title: '', comment: '' });
+      setActiveTab('reviews');
+      setSubmitError(null);
+    } catch (err) {
+      // Parse nested error structure
+      try {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const outerError = JSON.parse(errorMessage);
+        
+        // Check if there's a nested error in the message field
+        let errorData = outerError;
+        if (outerError.message && typeof outerError.message === 'string') {
+          try {
+            errorData = JSON.parse(outerError.message);
+          } catch {
+            // If message is not JSON, use outer error
+          }
+        }
+        
+        if (errorData.status === 401) {
+          setSubmitError('Bạn cần đăng nhập để đánh giá sản phẩm');
+          setIsAuthenticated(false);
+        } else if (errorData.status === 403) {
+          setSubmitError('Bạn không có quyền đánh giá sản phẩm này. Chỉ những khách hàng đã mua sản phẩm mới có thể đánh giá.');
+        } else {
+          setSubmitError(errorData.data?.error || errorData.data?.message || 'Không thể gửi đánh giá');
+        }
+      } catch {
+        setSubmitError(err instanceof Error ? err.message : 'Không thể gửi đánh giá. Vui lòng thử lại sau.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLoginRedirect = () => {
+    // Save current URL to redirect back after login
+    localStorage.setItem('redirectUrl', window.location.pathname);
+    router.push('/auth/login');
   };
 
   const averageRating = reviews.length > 0 
@@ -145,7 +244,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       <div className="p-6">
         {activeTab === 'reviews' ? (
           <div className="space-y-6">
-            {reviews.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">Đang tải đánh giá...</p>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                </div>
+              </div>
+            ) : reviews.length === 0 ? (
               <div className="text-center py-8">
                 <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400">
@@ -158,14 +269,14 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                       <span className="text-blue-600 dark:text-blue-400 font-medium">
-                        {review.userName.charAt(0)}
+                        {(review.user_name || 'U').charAt(0)}
                       </span>
                     </div>
                     
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h4 className="font-medium text-gray-900 dark:text-white">
-                          {review.userName}
+                          {review.user_name || 'Người dùng'}
                         </h4>
                         <div className="flex">
                           {[...Array(5)].map((_, i) => (
@@ -178,7 +289,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                           ))}
                         </div>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(review.created_at).toLocaleDateString('vi-VN')}
                         </span>
                       </div>
                       
@@ -200,6 +311,49 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         ) : (
           <form onSubmit={handleSubmitReview} className="space-y-6">
+            {/* Show authentication warning if not logged in */}
+            {!isAuthenticated && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-yellow-800 dark:text-yellow-400 mb-1">
+                    Yêu cầu đăng nhập
+                  </h4>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+                    Bạn cần đăng nhập để viết đánh giá cho sản phẩm này.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleLoginRedirect}
+                    className="text-sm font-medium text-yellow-800 dark:text-yellow-400 underline hover:no-underline"
+                  >
+                    Đăng nhập ngay
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Show error message if submission failed */}
+            {submitError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    {submitError}
+                  </p>
+                  {submitError.includes('đăng nhập') && (
+                    <button
+                      type="button"
+                      onClick={handleLoginRedirect}
+                      className="text-sm font-medium text-red-800 dark:text-red-400 underline hover:no-underline mt-2"
+                    >
+                      Đăng nhập ngay
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Đánh giá của bạn
@@ -211,15 +365,30 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     type="button"
                     onClick={() => setNewReview({ ...newReview, rating: i + 1 })}
                     className="p-1"
+                    disabled={!isAuthenticated}
                   >
                     <Star
                       className={`w-6 h-6 ${
                         i < newReview.rating ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600'
-                      } hover:text-yellow-400 transition-colors`}
+                      } ${isAuthenticated ? 'hover:text-yellow-400' : 'cursor-not-allowed opacity-50'} transition-colors`}
                     />
                   </button>
                 ))}
               </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Tiêu đề
+              </label>
+              <input
+                type="text"
+                value={newReview.title}
+                onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Tóm tắt đánh giá của bạn..."
+                disabled={!isAuthenticated}
+              />
             </div>
             
             <div>
@@ -230,17 +399,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 value={newReview.comment}
                 onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
                 required
+                disabled={!isAuthenticated}
               />
             </div>
             
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              disabled={!isAuthenticated || submitting}
+              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Gửi đánh giá
+              {submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
             </button>
           </form>
         )}

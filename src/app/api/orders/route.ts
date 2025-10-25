@@ -113,7 +113,6 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error in orders API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy danh sách đơn hàng' },
       { status: 500 }
@@ -152,7 +151,6 @@ export async function POST(request: NextRequest) {
       order: newOrder
     }, { status: 201 });
   } catch (error) {
-    console.error('Error in create order API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi tạo đơn hàng' },
       { status: 500 }

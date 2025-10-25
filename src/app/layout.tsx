@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
+import { ToastProvider } from '@/context/ToastContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -35,13 +36,15 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <CartProvider>
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <Footer />
-              </div>
+              <ToastProvider>
+                <div className="min-h-screen flex flex-col">
+                  <Header />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <Footer />
+                </div>
+              </ToastProvider>
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>

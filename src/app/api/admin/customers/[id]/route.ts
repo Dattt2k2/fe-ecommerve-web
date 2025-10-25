@@ -45,7 +45,6 @@ export async function PUT(
     const { id } = params;
     const updateData = await request.json();
 
-    console.log('Update customer request:', { id, updateData });
 
     // Find customer
     const customerIndex = mockCustomers.findIndex(c => c.id === id);
@@ -68,7 +67,6 @@ export async function PUT(
     });
 
   } catch (error) {
-    console.error('Update customer error:', error);
     return NextResponse.json(
       { error: 'Failed to update customer' },
       { status: 500 }
@@ -84,7 +82,6 @@ export async function DELETE(
   try {
     const { id } = params;
 
-    console.log('Delete customer request:', { id });
 
     // Find customer
     const customerIndex = mockCustomers.findIndex(c => c.id === id);
@@ -104,7 +101,6 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error('Delete customer error:', error);
     return NextResponse.json(
       { error: 'Failed to delete customer' },
       { status: 500 }
@@ -120,7 +116,6 @@ export async function GET(
   try {
     const { id } = params;
 
-    console.log('Get customer request:', { id });
 
     // Find customer
     const customer = mockCustomers.find(c => c.id === id);
@@ -137,7 +132,6 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Get customer error:', error);
     return NextResponse.json(
       { error: 'Failed to get customer' },
       { status: 500 }

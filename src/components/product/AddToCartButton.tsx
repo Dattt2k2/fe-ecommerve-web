@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { Product } from '@/types';
-import { ShoppingCart, Plus, Minus, Check } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Check, AlertCircle } from 'lucide-react';
 
 interface AddToCartButtonProps {
   product: Product;
@@ -23,17 +23,32 @@ export default function AddToCartButton({
   const [isAdded, setIsAdded] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (product.stock <= 0) return;
     
-    addToCart(product, quantity, {
+    setIsLoading(true);
+    setError('');
+    
+    const result = await addToCart(product, quantity, {
       size: selectedSize || undefined,
       color: selectedColor || undefined,
     });
     
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 2000);
+    setIsLoading(false);
+
+    if (result.success) {
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
+    } else {
+      console.log('AddToCart error result:', result); // Debug
+      const errorMsg = result.message || 'Có lỗi xảy ra';
+      console.log('Error message to display:', errorMsg); // Debug
+      setError(errorMsg);
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   const incrementQuantity = () => {
@@ -129,12 +144,22 @@ export default function AddToCartButton({
             </span>
           </div>
         </div>
-      )}      {/* Add to Cart Button */}
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Add to Cart Button */}
       <button
         onClick={handleAddToCart}
-        disabled={product.stock <= 0}
+        disabled={product.stock <= 0 || isLoading}
         className={`${buttonText ? 'w-full' : 'p-2'} flex items-center justify-center gap-2 ${buttonText ? 'px-6 py-3' : ''} rounded-lg font-medium transition-all ${
-          product.stock <= 0
+          product.stock <= 0 || isLoading
             ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
             : isAdded
             ? 'bg-green-600 text-white'
@@ -145,6 +170,11 @@ export default function AddToCartButton({
       >
         {product.stock <= 0 ? (
           buttonText ? 'Hết hàng' : <ShoppingCart className="w-4 h-4" />
+        ) : isLoading ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            {buttonText && 'Đang thêm...'}
+          </>
         ) : isAdded ? (
           <>
             <Check className={buttonText ? "w-5 h-5" : "w-4 h-4"} />

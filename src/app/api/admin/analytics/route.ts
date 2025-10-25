@@ -106,7 +106,6 @@ export async function GET(request: NextRequest) {
       category
     });
   } catch (error) {
-    console.error('Error in admin analytics API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy dữ liệu analytics' },
       { status: 500 }

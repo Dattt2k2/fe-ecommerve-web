@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       data: mockAnalytics
     });
   } catch (error) {
-    console.error('Error in admin dashboard API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy dữ liệu dashboard' },
       { status: 500 }

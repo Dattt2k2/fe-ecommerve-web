@@ -1,5 +1,5 @@
 import React from 'react'
-import SellerDashboard from '@/components/seller/SellerDashboard'
+import SellerDashboardWrapper from '@/components/seller/SellerDashboardWrapper'
 
 export const metadata = {
   title: 'Kênh Người Bán - Quản lý',
@@ -7,10 +7,8 @@ export const metadata = {
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html>
-      <body>
-        <SellerDashboard>{children}</SellerDashboard>
-      </body>
-    </html>
+    <>
+      <SellerDashboardWrapper>{children}</SellerDashboardWrapper>
+    </>
   )
 }

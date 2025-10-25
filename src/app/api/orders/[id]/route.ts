@@ -95,7 +95,6 @@ export async function GET(
 
     return NextResponse.json({ order });
   } catch (error) {
-    console.error('Error in get order API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy thông tin đơn hàng' },
       { status: 500 }
@@ -141,7 +140,6 @@ export async function PUT(
       order: orders[orderIndex]
     });
   } catch (error) {
-    console.error('Error in update order API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi cập nhật đơn hàng' },
       { status: 500 }
@@ -186,7 +184,6 @@ export async function DELETE(
       order: orders[orderIndex]
     });
   } catch (error) {
-    console.error('Error in cancel order API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi hủy đơn hàng' },
       { status: 500 }

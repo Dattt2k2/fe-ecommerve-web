@@ -1,173 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Product } from '@/types';
 
-// Mock products database - same as in the main route
-let products: Product[] = [
-  {
-    id: '1',
-    name: 'iPhone 14 Pro',
-    description: 'Apple iPhone 14 Pro với camera 48MP, chip A16 Bionic',
-    price: 29990000,
-    originalPrice: 32990000,
-    category: 'smartphones',
-    image: '/api/placeholder/300/300',
-    stock: 10,
-    images: ['/api/placeholder/300/300'],
-    rating: 4.8,
-    reviews: 120,
-    tags: ['hot', 'sale']
-  },
-  {
-    id: '2',
-    name: 'Samsung Galaxy S23',
-    description: 'Samsung Galaxy S23 với camera 50MP, chip Snapdragon 8 Gen 2',
-    price: 19990000,
-    originalPrice: 22990000,
-    category: 'smartphones',
-    image: '/api/placeholder/300/300',
-    stock: 15,
-    images: ['/api/placeholder/300/300'],
-    rating: 4.7,
-    reviews: 89,
-    tags: ['new']
-  },
-  {
-    id: '3',
-    name: 'MacBook Air M2',
-    description: 'MacBook Air với chip M2, 13.6 inch, 8GB RAM, 256GB SSD',
-    price: 28990000,
-    originalPrice: 31990000,
-    category: 'laptops',
-    image: '/api/placeholder/300/300',
-    stock: 8,
-    images: ['/api/placeholder/300/300'],
-    rating: 4.9,
-    reviews: 45,
-    tags: ['hot']
-  },
-  {
-    id: '4',
-    name: 'AirPods Pro 2',
-    description: 'Apple AirPods Pro thế hệ 2 với chip H2, chống ồn chủ động',
-    price: 6490000,
-    originalPrice: 7490000,
-    category: 'audio',
-    image: '/api/placeholder/300/300',
-    stock: 25,
-    images: ['/api/placeholder/300/300'],
-    rating: 4.6,
-    reviews: 78,
-    tags: ['sale']
-  },
-  {
-    id: '5',
-    name: 'iPad Pro 11',
-    description: 'iPad Pro 11 inch với chip M2, 128GB, Wi-Fi',
-    price: 21990000,
-    originalPrice: 23990000,
-    category: 'tablets',
-    image: '/api/placeholder/300/300',
-    stock: 12,
-    images: ['/api/placeholder/300/300'],
-    rating: 4.8,
-    reviews: 67,
-    tags: ['new']
-  }
-];
-
-// GET /api/products/[id] - Get product by ID
+/**
+ * Route handler cho chi tiết sản phẩm - chuyển tiếp yêu cầu đến backend thực
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
+  
   try {
-    const { id } = params;
+    // URL trực tiếp đến backend - sử dụng endpoint products-info
+    const backendUrl = `http://localhost:8080/api/products-info/${id}`;
+    console.log(`[ProductAPI] Forwarding request to backend: ${backendUrl}`);
     
-    const product = products.find(p => p.id === id);
-    if (!product) {
+    // Gọi API backend thực
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      cache: 'no-store'
+    });
+    
+    // Chuyển tiếp phản hồi từ backend
+    if (!response.ok) {
+      console.error(`[ProductAPI] Backend returned error status: ${response.status}`);
       return NextResponse.json(
-        { error: 'Không tìm thấy sản phẩm' },
-        { status: 404 }
+        { error: `Backend returned status: ${response.status}` },
+        { status: response.status }
       );
     }
-
-    return NextResponse.json({ product });
+    
+    // Trả về dữ liệu từ backend
+    const data = await response.json();
+    console.log(`[ProductAPI] Successfully forwarded product ${id} from backend`);
+    return NextResponse.json(data);
+    
   } catch (error) {
-    console.error('Error in get product API:', error);
+    console.error(`[ProductAPI] Error connecting to backend: ${error instanceof Error ? error.message : String(error)}`);
     return NextResponse.json(
-      { error: 'Lỗi khi lấy thông tin sản phẩm' },
+      { error: 'Lỗi kết nối đến backend', details: String(error) },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/products/[id] - Update product (admin only)
+/**
+ * PUT - Chuyển tiếp cập nhật sản phẩm đến backend
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
+  
   try {
-    const { id } = params;
+    // Lấy dữ liệu từ request
     const productData = await request.json();
-
-    const productIndex = products.findIndex(p => p.id === id);
-    if (productIndex === -1) {
+    
+    // URL trực tiếp đến backend
+    const backendUrl = `http://localhost:8080/api/products/${id}`;
+    console.log(`[ProductAPI] Forwarding PUT request to backend: ${backendUrl}`);
+    
+    // Gọi API backend thực
+    const response = await fetch(backendUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(productData),
+      cache: 'no-store'
+    });
+    
+    // Chuyển tiếp phản hồi từ backend
+    if (!response.ok) {
+      console.error(`[ProductAPI] Backend returned error status on PUT: ${response.status}`);
       return NextResponse.json(
-        { error: 'Không tìm thấy sản phẩm' },
-        { status: 404 }
+        { error: `Backend returned status: ${response.status}` },
+        { status: response.status }
       );
     }
-
-    // Update product
-    const updatedProduct: Product = {
-      ...products[productIndex],
-      ...productData,
-      id, // Ensure ID doesn't change
-      updatedAt: new Date().toISOString()
-    };
-
-    products[productIndex] = updatedProduct;
-
-    return NextResponse.json({
-      message: 'Cập nhật sản phẩm thành công',
-      product: updatedProduct
-    });
+    
+    // Trả về dữ liệu từ backend
+    const data = await response.json();
+    return NextResponse.json(data);
+    
   } catch (error) {
-    console.error('Error in update product API:', error);
+    console.error(`[ProductAPI] Error on PUT: ${error instanceof Error ? error.message : String(error)}`);
     return NextResponse.json(
-      { error: 'Lỗi khi cập nhật sản phẩm' },
+      { error: 'Lỗi kết nối đến backend', details: String(error) },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/products/[id] - Delete product (admin only)
+/**
+ * DELETE - Chuyển tiếp xóa sản phẩm đến backend
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
+  
   try {
-    const { id } = params;
-
-    const productIndex = products.findIndex(p => p.id === id);
-    if (productIndex === -1) {
+    // URL trực tiếp đến backend
+    const backendUrl = `http://localhost:8080/api/products/${id}`;
+    console.log(`[ProductAPI] Forwarding DELETE request to backend: ${backendUrl}`);
+    
+    // Gọi API backend thực
+    const response = await fetch(backendUrl, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      cache: 'no-store'
+    });
+    
+    // Chuyển tiếp phản hồi từ backend
+    if (!response.ok) {
+      console.error(`[ProductAPI] Backend returned error status on DELETE: ${response.status}`);
       return NextResponse.json(
-        { error: 'Không tìm thấy sản phẩm' },
-        { status: 404 }
+        { error: `Backend returned status: ${response.status}` },
+        { status: response.status }
       );
     }
-
-    // Remove product
-    products.splice(productIndex, 1);
-
-    return NextResponse.json({
-      message: 'Xóa sản phẩm thành công'
-    });
+    
+    // Trả về dữ liệu từ backend
+    const data = await response.json();
+    return NextResponse.json(data);
+    
   } catch (error) {
-    console.error('Error in delete product API:', error);
+    console.error(`[ProductAPI] Error on DELETE: ${error instanceof Error ? error.message : String(error)}`);
     return NextResponse.json(
-      { error: 'Lỗi khi xóa sản phẩm' },
+      { error: 'Lỗi kết nối đến backend', details: String(error) },
       { status: 500 }
     );
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }

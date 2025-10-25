@@ -5,27 +5,31 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --color-primary: #ff5722; /* Shopee-like orange */
-  --surface: #ffffff;
-  --surface-muted: #f8f8f8;
+  --color-primary: #ff5722;
 }
 
-/* Shopee-like header helpers */
-.shopee-topbar {
-  background: linear-gradient(90deg, #ff5a3c, #ff7a2b);
-  color: white;
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
+
+/* Custom gradients */
+.gradient-orange-to-dark {
+  background: linear-gradient(135deg, #ff5722, #1a1a1a);
+}
+
+.gradient-orange-to-black {
+  background: linear-gradient(90deg, #ff5722, #000000);
+}
+
 .shopee-search-input {
   background: white;
   border-radius: 9999px;
-}
-.shopee-search-btn {
-  background: #ff5722;
-  color: white;
-  border-radius: 0.5rem;
+  border: none;
+  outline: none;
 }
 
-/* Material icon style inside inputs */
+/* Material icon inside search */
 .material-icons.inside-input {
   font-family: 'Material Icons';
   position: absolute;
@@ -46,42 +50,14 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  width: 100%;
+  overflow-x: hidden;
 }
 
-/* Custom scrollbar for dark mode */
-.dark::-webkit-scrollbar {
-  width: 8px;
-}
-
-.dark::-webkit-scrollbar-track {
-  background: #374151;
-}
-
-.dark::-webkit-scrollbar-thumb {
-  background: #6b7280;
-  border-radius: 4px;
-}
-
-.dark::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Smooth transitions for theme switching */
-* {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-/* Prevent flash of unstyled content */
-html {
-  color-scheme: light;
-}
-
-html.dark {
-  color-scheme: dark;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Ensure full width layouts */
+.full-width-container {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding-left: calc(50vw - 50%);
+  padding-right: calc(50vw - 50%);
 }

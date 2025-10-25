@@ -1,7 +1,7 @@
 // Custom hooks for API data fetching
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { productsAPI, ordersAPI, usersAPI, adminAPI } from '@/lib/api';
 
 // Generic hook for API calls
@@ -26,16 +26,21 @@ export function useApi<T>(
     }
   };
 
+  // Convert dependencies to strings to avoid object reference issues
+  const depsString = JSON.stringify(dependencies);
+
   useEffect(() => {
     fetchData();
-  }, dependencies);
+  }, [depsString]);
 
   return { data, loading, error, refetch: fetchData };
 }
 
 // Products hooks
 export function useProducts(params?: any) {
-  return useApi(() => productsAPI.getProducts(params), [params]);
+  // Memoize params to prevent unnecessary re-renders
+  const memoizedParams = useMemo(() => params, [JSON.stringify(params)]);
+  return useApi(() => productsAPI.getProducts(memoizedParams), [memoizedParams]);
 }
 
 export function useProduct(id: string) {

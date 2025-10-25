@@ -270,7 +270,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
       router.push('/admin/products');
       
     } catch (error: any) {
-      console.error('Error saving product:', error);
       alert('Có lỗi xảy ra: ' + (error.message || 'Vui lòng thử lại'));
     }
   };

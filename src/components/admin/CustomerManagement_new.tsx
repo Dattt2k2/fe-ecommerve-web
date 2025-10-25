@@ -77,7 +77,6 @@ export default function CustomerManagement() {
         // Try to fetch from API
       const response = await adminAPI.getCustomers();
       
-      console.log('Customers API response:', response);
         // Handle different response formats
       const customerData = response?.customers || [];
       // Convert User to Customer format
@@ -88,7 +87,6 @@ export default function CustomerManagement() {
       setCustomers(convertedCustomers);
       
     } catch (err) {
-      console.error('Error fetching customers:', err);
       setError('Không thể tải danh sách khách hàng. Sử dụng dữ liệu mẫu.');
       
       // Fallback to mock data
@@ -133,10 +131,8 @@ export default function CustomerManagement() {
         )
       );
       
-      console.log(`Customer ${id} status updated to ${newStatus}`);
       
     } catch (error) {
-      console.error('Error updating customer status:', error);
       alert('Có lỗi xảy ra khi cập nhật trạng thái khách hàng');
     } finally {
       setUpdateLoading(false);
@@ -157,10 +153,8 @@ export default function CustomerManagement() {
       // Update local state
       setCustomers(prev => prev.filter(customer => customer.id !== id));
       
-      console.log(`Customer ${id} deleted`);
       
     } catch (error) {
-      console.error('Error deleting customer:', error);
       alert('Có lỗi xảy ra khi xóa khách hàng');
     } finally {
       setUpdateLoading(false);

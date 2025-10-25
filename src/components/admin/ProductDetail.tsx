@@ -91,7 +91,6 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
         setProduct(mockProduct);
         setStats(mockStats);
       } catch (error) {
-        console.error('Error loading product:', error);
       } finally {
         setLoading(false);
       }
@@ -104,7 +103,6 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
     setIsDeleting(true);
     try {
       // In a real app, you would make an API call to delete the product
-      console.log('Deleting product:', productId);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));

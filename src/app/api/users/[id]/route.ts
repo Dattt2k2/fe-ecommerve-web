@@ -44,7 +44,6 @@ export async function GET(
 
     return NextResponse.json({ user: safeUser });
   } catch (error) {
-    console.error('Error in get user API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy thông tin người dùng' },
       { status: 500 }
@@ -94,7 +93,6 @@ export async function PUT(
       user: safeUser
     });
   } catch (error) {
-    console.error('Error in update user API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi cập nhật thông tin người dùng' },
       { status: 500 }
@@ -133,7 +131,6 @@ export async function DELETE(
       message: 'Xóa người dùng thành công'
     });
   } catch (error) {
-    console.error('Error in delete user API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi xóa người dùng' },
       { status: 500 }

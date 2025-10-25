@@ -92,7 +92,6 @@ export default function CustomerManagement() {
       await updateUser({ id, data: { status: newStatus } });
       refetch();
     } catch (error) {
-      console.error('Error updating customer status:', error);
       alert('Có lỗi xảy ra khi cập nhật trạng thái khách hàng');
     }
   };
@@ -104,7 +103,6 @@ export default function CustomerManagement() {
         await deleteUser(id);
         refetch();
       } catch (error) {
-        console.error('Error deleting customer:', error);
         alert('Có lỗi xảy ra khi xóa khách hàng');
       }
     }

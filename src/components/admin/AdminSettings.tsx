@@ -161,7 +161,6 @@ export default function AdminSettings() {
     
     try {
       // In a real app, you would submit to an API
-      console.log('Saving settings:', settings);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));

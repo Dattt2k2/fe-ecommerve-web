@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
@@ -34,15 +34,15 @@ export default function ProductManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // API params for products
-  const apiParams = {
+  // API params for products - memoized to prevent unnecessary re-renders
+  const apiParams = useMemo(() => ({
     search: searchTerm || undefined,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     sortBy,
     sortOrder,
     page: currentPage,
     limit: itemsPerPage
-  };
+  }), [searchTerm, selectedCategory, sortBy, sortOrder, currentPage, itemsPerPage]);
 
   // Use API hooks
   const { 
@@ -78,7 +78,6 @@ export default function ProductManagement() {
         // Refetch data after successful delete
         refetch();
       } catch (error) {
-        console.error('Error deleting product:', error);
         alert('Có lỗi xảy ra khi xóa sản phẩm');
       }
     }

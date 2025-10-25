@@ -54,21 +54,70 @@ export default function LoginForm() {
     return Object.keys(newErrors).length === 0;
   };
   const handleSubmit = async (e: React.FormEvent) => {
+    // CRITICAL: Stop ALL default form behavior
     e.preventDefault();
+    e.stopPropagation();
     
-    if (!validateForm()) return;
+    
+    if (!validateForm()) {
+      return;
+    }
     
     setLoading(true);
     setSubmitError('');
     
     try {
+     
       await login(formData.email, formData.password);
-      // Redirect to dashboard or previous page
-      router.push('/');
+     
+      // Login successful - redirect to home page
+      await router.push('/');
+   
     } catch (error: any) {
-      setSubmitError(error.message || 'Đăng nhập thất bại');
-    } finally {
+
+      
+      // Extract meaningful error message from backend
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      
+      if (error?.message) {
+        try {
+          // Backend returns: {"status":401,"url":"...","data":{"error":"invalid email or password"}}
+          const parsed = JSON.parse(error.message);
+          
+          // Extract from nested data object
+          if (parsed.data) {
+            if (parsed.data.error) {
+              errorMessage = parsed.data.error;
+            } else if (parsed.data.message) {
+              errorMessage = parsed.data.message;
+            } else if (parsed.data.msg) {
+              errorMessage = parsed.data.msg;
+            }
+          } else if (parsed.error) {
+            errorMessage = parsed.error;
+          } else if (parsed.message) {
+            errorMessage = parsed.message;
+          }
+          
+          // Translate common error messages to Vietnamese
+          if (errorMessage.toLowerCase().includes('invalid email or password')) {
+            errorMessage = 'Email hoặc mật khẩu không đúng';
+          } else if (errorMessage.toLowerCase().includes('user not found')) {
+            errorMessage = 'Tài khoản không tồn tại';
+          } else if (errorMessage.toLowerCase().includes('incorrect password')) {
+            errorMessage = 'Mật khẩu không đúng';
+          }
+        } catch (parseError) {
+          // If not JSON, use message as is
+          errorMessage = error.message;
+        }
+      }
+      
+      setSubmitError(errorMessage);
       setLoading(false);
+      
+      // CRITICAL: Don't let error propagate up
+      return;
     }
   };
   return (

@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { Star, ShoppingCart, Heart, Eye } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import SmoothLink from '@/components/ui/SmoothLink';
 
 interface ProductCardProps {
   product: Product;
@@ -15,40 +15,47 @@ interface ProductCardProps {
 export default function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
   const { addToCart } = useCart();
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (product.stock > 0) {
-      addToCart(product);
+      await addToCart(product);
     }
   };
   if (viewMode === 'list') {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
         <div className="flex flex-col sm:flex-row">
-          <Link href={`/products/${product.id}`} className="sm:w-48 h-48 sm:h-auto">
-            <div className="relative w-full h-full">
-              <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                className="object-cover hover:scale-105 transition-transform"
-              />
+          <SmoothLink href={`/products/${product.id}`} className="sm:w-48 h-48 sm:h-auto">
+            <div className="relative w-full h-full bg-gray-200 dark:bg-gray-700">
+              {product.image && (
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  className="object-cover hover:scale-105 transition-transform"
+                />
+              )}
+              {!product.image && (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  Không có ảnh
+                </div>
+              )}
               {product.featured && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
                   Nổi bật
                 </span>
               )}
             </div>
-          </Link>
+          </SmoothLink>
           
           <div className="flex-1 p-6">
             <div className="flex flex-col h-full">
-              <Link href={`/products/${product.id}`}>
+              <SmoothLink href={`/products/${product.id}`}>
                 <h3 className="font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 mb-2">
                   {product.name}
                 </h3>
-              </Link>
+              </SmoothLink>
               
               <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-3">
                 {product.description}
@@ -122,14 +129,21 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group">
-      <Link href={`/products/${product.id}`}>
-        <div className="relative aspect-square overflow-hidden">
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+      <SmoothLink href={`/products/${product.id}`}>
+        <div className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-gray-700">
+          {product.image && (
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          )}
+          {!product.image && (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              Không có ảnh
+            </div>
+          )}
           {product.featured && (
             <span className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
               Nổi bật
@@ -153,14 +167,14 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             </div>
           )}
         </div>
-      </Link>
+      </SmoothLink>
       
       <div className="p-4">
-        <Link href={`/products/${product.id}`}>
+        <SmoothLink href={`/products/${product.id}`}>
           <h3 className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 mb-2">
             {product.name}
           </h3>
-        </Link>
+        </SmoothLink>
         
         <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-3">
           {product.description}

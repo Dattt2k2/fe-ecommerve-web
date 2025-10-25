@@ -56,7 +56,6 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error in users API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi lấy danh sách người dùng' },
       { status: 500 }
@@ -111,7 +110,6 @@ export async function POST(request: NextRequest) {
       user: safeUser
     }, { status: 201 });
   } catch (error) {
-    console.error('Error in create user API:', error);
     return NextResponse.json(
       { error: 'Lỗi khi tạo người dùng' },
       { status: 500 }

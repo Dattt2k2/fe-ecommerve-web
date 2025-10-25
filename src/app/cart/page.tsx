@@ -1,13 +1,39 @@
 'use client';
 
+import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
-import { Minus, Plus, X, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Minus, Plus, X, ShoppingBag, ArrowLeft, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export default function CartPage() {
   const { items, total, itemCount, updateQuantity, removeFromCart, clearCart } = useCart();
+  const [error, setError] = useState<string>('');
+  
+  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
+    const result = await updateQuantity(itemId, newQuantity);
+    if (!result.success) {
+      setError(result.message || 'Có lỗi xảy ra');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
+  
+  const handleRemoveItem = async (itemId: string) => {
+    const result = await removeFromCart(itemId);
+    if (!result.success) {
+      setError(result.message || 'Có lỗi xảy ra');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
+  
+  const handleClearCart = async () => {
+    const result = await clearCart();
+    if (!result.success) {
+      setError(result.message || 'Có lỗi xảy ra');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -34,12 +60,20 @@ export default function CartPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 flex items-start gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Giỏ hàng ({itemCount} sản phẩm)
         </h1>
         <button
-          onClick={clearCart}
+          onClick={handleClearCart}
           className="text-red-600 hover:text-red-700 text-sm font-medium"
         >
           Xóa tất cả
@@ -92,7 +126,7 @@ export default function CartPage() {
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                         disabled={item.quantity <= 1}
                         className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -102,7 +136,7 @@ export default function CartPage() {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.product.stock}
                         className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -126,7 +160,7 @@ export default function CartPage() {
 
                 {/* Remove Button */}
                 <button
-                  onClick={() => removeFromCart(item.id)}
+                  onClick={() => handleRemoveItem(item.id)}
                   className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />

@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import ProductCard from '@/components/product/ProductCard';
 import { Product } from '@/types';
 import { Filter, Grid, List, Search } from 'lucide-react';
-import { getAllProducts } from '@/lib/data';
+import { productsAPI } from '@/lib/api';
+import { useToast } from '@/context/ToastContext';
 
 export default function ProductsPage() {
+  const { showError } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -15,20 +17,56 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState([0, 60000000]);
 
-  // Load products from data file
+  // Load products from API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await getAllProducts();
-        setProducts(data);
-        setFilteredProducts(data);
-      } catch (error) {
-        console.error('Error fetching products:', error);
+        const response = await productsAPI.getProducts();
+        const rawData = response.products || [];
+        
+        // Map backend data to frontend Product interface and validate images
+        const mappedData = rawData.map((item: any) => {
+          // Helper to get valid image URLs
+          const getValidImageUrl = (imagePath: any): string => {
+            if (!imagePath) return '/images/placeholder.jpg';
+            
+            // If array, get first valid URL
+            if (Array.isArray(imagePath)) {
+              const validUrl = imagePath.find((url: any) => {
+                if (typeof url !== 'string' || !url) return false;
+                return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+              });
+              return validUrl || '/images/placeholder.jpg';
+            }
+            
+            // If string, validate it
+            if (typeof imagePath === 'string' && imagePath) {
+              if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/')) {
+                return imagePath;
+              }
+            }
+            
+            return '/images/placeholder.jpg';
+          };
+          
+          return {
+            ...item,
+            image: getValidImageUrl(item.image_path || item.image),
+            images: Array.isArray(item.image_path) 
+              ? item.image_path.filter((url: any) => typeof url === 'string' && url)
+              : [],
+          };
+        });
+        
+        setProducts(mappedData);
+        setFilteredProducts(mappedData);
+      } catch (error: any) {
+        showError(error.message || 'Không thể tải danh sách sản phẩm');
       }
     };
 
     fetchProducts();
-  }, []);
+  }, [showError]);
 
   // Dynamic categories based on loaded products
   const categories = [
@@ -80,7 +118,8 @@ export default function ProductsPage() {
   }, [products, sortBy, filterBy, searchQuery, priceRange]);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
@@ -235,7 +274,7 @@ export default function ProductsPage() {
             {filteredProducts.length > 0 ? (
               <div className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6'
                   : 'space-y-4'
               }>
                 {filteredProducts.map((product) => (
@@ -270,6 +309,7 @@ export default function ProductsPage() {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>

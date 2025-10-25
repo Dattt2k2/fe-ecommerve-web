@@ -62,7 +62,6 @@ export default function CustomerManagement() {
       }
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
-      console.error('Error fetching customers:', err);
     } finally {
       setLoading(false);
     }

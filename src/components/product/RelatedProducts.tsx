@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Product } from '@/types';
-import { getAllProducts } from '@/lib/data';
+import { productsAPI } from '@/lib/api';
 import ProductCard from './ProductCard';
 
 interface RelatedProductsProps {
@@ -17,20 +17,22 @@ export default function RelatedProducts({ currentProduct, limit = 4 }: RelatedPr
   useEffect(() => {
     const fetchRelatedProducts = async () => {
       try {
-        const allProducts = await getAllProducts();
-        
+        // Don't filter by category in API call yet - get all products first
+        const response = await productsAPI.getProducts();
+        const allProducts = response.products || [];
+       
         // Filter products: same category, exclude current product
         const related = allProducts
-          .filter(product => 
-            product.category === currentProduct.category && 
-            product.id !== currentProduct.id
-          )
+          .filter((product: Product) => {
+            return product.category === currentProduct.category && 
+                   product.id !== currentProduct.id;
+          })
           .slice(0, limit);
-
+          
         // If not enough products in same category, add random products
         if (related.length < limit) {
           const remaining = allProducts
-            .filter(product => 
+            .filter((product: Product) => 
               product.category !== currentProduct.category && 
               product.id !== currentProduct.id
             )
@@ -41,7 +43,6 @@ export default function RelatedProducts({ currentProduct, limit = 4 }: RelatedPr
 
         setRelatedProducts(related);
       } catch (error) {
-        console.error('Error fetching related products:', error);
       } finally {
         setLoading(false);
       }
