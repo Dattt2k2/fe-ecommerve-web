@@ -86,17 +86,22 @@ export default function InventoryManagement() {
   // Categories (could be fetched from API)
   const categories = ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Other'];
 
-  // Fetch products from API
+  // Fetch products from API via proxy
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || localStorage.getItem('auth_token') : null;
       
-      const res = await fetch(`${base}/api/seller/products`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const res = await fetch('/api/products?user=true', { headers });
       
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
@@ -201,24 +206,23 @@ export default function InventoryManagement() {
     }
   };
 
-  // Upload images to S3 using presigned URL or fallback to direct upload
-  const uploadImages = async (files: File[]): Promise<{ imageUrls: string[], s3Keys: string[] }> => {
+  // Upload images to S3 using presigned URL from proxy
+  const uploadImages = async (files: File[]): Promise<{ s3Keys: string[] }> => {
     try {
       
-      // Send array format to BACKEND API (not mock)
+      // Send array format to PROXY API
       const filesRequest = files.map(file => ({
         fileName: file.name,
         fileType: file.type
       }));
       
       // Get access token from localStorage
-      const accessToken = localStorage.getItem('auth_token');
+      const accessToken = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
       if (!accessToken) {
         throw new Error('No access token found. Please login first.');
       }
       
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${API_URL}/api/user/upload/presigned-url`, {
+      const response = await fetch('/upload/presigned-url', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -266,20 +270,14 @@ export default function InventoryManagement() {
           throw fetchError;
         }
         
-        // Construct public URL from S3 key
-        const publicUrl = `https://go-ecom1.s3.ap-southeast-1.amazonaws.com/${item.s3_key}`;
-        
-        return {
-          imageUrl: publicUrl,
-          s3Key: item.s3_key
-        };
+        // Return only S3 key
+        return item.s3_key;
       });
       
       const results = await Promise.all(uploadPromises);
       
       return {
-        imageUrls: results.map(r => r.imageUrl),
-        s3Keys: results.map(r => r.s3Key)
+        s3Keys: results
       };
       
     } catch (error) {
@@ -294,17 +292,15 @@ export default function InventoryManagement() {
     try {
       setUploadingImages(true);
       
-      // Upload selected images and get both URLs and S3 keys
-      let imageUrls: string[] = [...formData.images];
-      let s3Keys: string[] = [];
+      // Upload selected images and get S3 keys only
+      let imageKeys: string[] = [...(formData.images as any[])];
       
       if (selectedFiles.length > 0) {
-        const { imageUrls: uploadedUrls, s3Keys: uploadedKeys } = await uploadImages(selectedFiles);
-        imageUrls = [...imageUrls, ...uploadedUrls];
-        s3Keys = uploadedKeys;
+        const { s3Keys: uploadedKeys } = await uploadImages(selectedFiles);
+        imageKeys = [...imageKeys, ...uploadedKeys];
       }
       
-      // Send public image URLs in image_path (backend expects image_path as array of URLs)
+      // Send only S3 keys in image_path (backend will convert to full URLs)
       const productData = {
         name: formData.name,
         description: formData.description,
@@ -312,24 +308,33 @@ export default function InventoryManagement() {
         quantity: formData.quantity,
         category: formData.category,
         status: formData.status,
-        image_path: imageUrls
+        image_path: imageKeys
       };
 
 
       // Save product to API
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const token = localStorage.getItem('auth_token');
+      // Save product to API via proxy
       const url = editingProduct 
-        ? `${base}/api/seller/products/${editingProduct.id}`
-        : `${base}/api/seller/products`;
+        ? '/api/products'
+        : '/api/products';
+      
+      const productPayload = editingProduct 
+        ? { id: editingProduct.id, ...productData }
+        : productData;
+      
+      const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       
       const response = await fetch(url, {
         method: editingProduct ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify(productData),
+        headers,
+        body: JSON.stringify(productPayload),
       });
 
       if (!response.ok) {
@@ -375,9 +380,56 @@ export default function InventoryManagement() {
     setMaxImageSize(1920);
   };
 
+  // Helper function to extract pure S3 key from full URL or encoded path
+  const extractS3Key = (imageUrl: string): string => {
+    try {
+      // Case 1: Full presigned URL - https://go-ecom1.s3.ap-southeast-1.amazonaws.com/{s3_key}?...
+      if (imageUrl.includes('amazonaws.com')) {
+        const urlObj = new URL(imageUrl);
+        let pathname = urlObj.pathname;
+        // Remove leading slash
+        if (pathname.startsWith('/')) {
+          pathname = pathname.slice(1);
+        }
+        return pathname;
+      }
+      
+      // Case 2: Encoded URL starting with https%3A
+      if (imageUrl.includes('https%3A')) {
+        // This is an encoded URL, need to extract S3 key part after 'product-images/'
+        const match = imageUrl.match(/product-images\/[^/?]+/);
+        if (match) {
+          return match[0];
+        }
+      }
+      
+      // Case 3: Plain S3 key (e.g., product-images/xxxxx.webp)
+      if (imageUrl.includes('product-images/')) {
+        const match = imageUrl.match(/product-images\/[^/?&]+/);
+        if (match) {
+          return match[0];
+        }
+      }
+      
+      // Default: return as-is if already a key
+      return imageUrl;
+    } catch (error) {
+      console.warn('Failed to extract S3 key:', error);
+      return imageUrl;
+    }
+  };
+
   // Open modal for editing
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    const imagePaths = product.image_path || [];
+    // Extract S3 keys from full URLs
+    const s3Keys = imagePaths.map(extractS3Key);
+    
+    // Ensure status is always valid (default to 'onsale' if empty or invalid)
+    const validStatus = (product.status as any) || 'onsale';
+    const isValidStatus = ['onsale', 'offsale', 'unavailable'].includes(validStatus);
+    
     setFormData({
       name: product.name,
       description: product.description || '',
@@ -385,8 +437,8 @@ export default function InventoryManagement() {
       quantity: product.quantity,
       category: product.category || '',
       sku: product.sku || '',
-      status: product.status,
-      images: product.image_path || [] // Already an array
+      status: isValidStatus ? (validStatus as any) : 'onsale',
+      images: s3Keys // Store S3 keys, not full URLs
     });
     setShowModal(true);
   };
@@ -396,19 +448,26 @@ export default function InventoryManagement() {
     if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
     
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
       
-      const response = await fetch(`${base}/api/seller/products/${productId}`, {
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`/api/products?id=${productId}`, {
         method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers,
       });
       
       if (!response.ok) throw new Error('Failed to delete product');
       
       await fetchProducts();
+      showSuccess('Xóa sản phẩm thành công!');
     } catch (error: any) {
-      setError(error.message || 'Lỗi khi xóa sản phẩm');
+      const errorMsg = error.message || 'Lỗi khi xóa sản phẩm';
+      setError(errorMsg);
+      showError(errorMsg);
     }
   };
 

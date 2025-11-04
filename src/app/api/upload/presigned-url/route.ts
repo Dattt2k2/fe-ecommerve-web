@@ -1,65 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock implementation - replace with actual AWS S3 SDK
+const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
+
+// Helper function to get auth header
+function getAuthHeader(request: NextRequest): string | null {
+  let authHeader = request.headers.get('authorization');
+  const cookieHeader = request.headers.get('cookie');
+
+  if (!authHeader && cookieHeader) {
+    const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+    if (tokenMatch) {
+      authHeader = `Bearer ${tokenMatch[1]}`;
+    }
+  }
+
+  return authHeader;
+}
+
+/**
+ * POST - Lấy presigned URL từ backend để upload ảnh
+ */
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = getAuthHeader(request);
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+    }
+
     const body = await request.json();
     
-    // Support both single file and batch format
-    const files = Array.isArray(body) ? body : (body.fileName ? [{ fileName: body.fileName, fileType: body.fileType }] : []);
+    console.log(`[UploadAPI] Forwarding POST request to backend: /upload/presigned-url`);
     
-    if (files.length === 0) {
+    const forwardHeaders: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': authHeader,
+    };
+
+    const response = await fetch(`${BACKEND_URL}/upload/presigned-url`, {
+      method: 'POST',
+      headers: forwardHeaders,
+      body: JSON.stringify(body),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      console.error(`[UploadAPI] Backend returned error status on POST: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { error: 'fileName and fileType are required' },
-        { status: 400 }
+        { error: errorData.error || `Backend returned status: ${response.status}` },
+        { status: response.status }
       );
     }
-    
-    // Process all files
-    const results = files.map((file: { fileName: string; fileType: string }) => {
-      const { fileName, fileType } = file;
-      
-      // Validate file type
-      if (!fileType.startsWith('image/')) {
-        throw new Error(`Only image files are allowed: ${fileName}`);
-      }
-      
-      // Generate unique file key
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(7);
-      const fileExtension = fileName.split('.').pop() || '';
-      const uniqueFileName = `products/${timestamp}-${randomString}.${fileExtension}`;
-      
-      // Generate presigned URL
-      const realS3UploadUrl = `https://go-ecom1.s3.ap-southeast-1.amazonaws.com/${uniqueFileName}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAYC5CLPN3476QMV6F%2F20251021%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20251021T000000Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=mock-signature-${randomString}`;
-      const realFileUrl = `https://go-ecom1.s3.ap-southeast-1.amazonaws.com/${uniqueFileName}`;
-      
-      return {
-        uploadUrl: realS3UploadUrl,
-        fileUrl: realFileUrl,
-        key: uniqueFileName,
-        originalFileName: fileName
-      };
-    });
-    
-    // If single file request, return single object
-    // If batch request, return array
-    if (!Array.isArray(body)) {
-      return NextResponse.json({
-        ...results[0],
-        success: true
-      });
-    }
-    
-    return NextResponse.json({
-      success: true,
-      results: results,
-      count: results.length
-    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: 201 });
     
   } catch (error) {
+    console.error(`[UploadAPI] Error: ${error instanceof Error ? error.message : String(error)}`);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Failed to get presigned URL' },
       { status: 500 }
     );
   }

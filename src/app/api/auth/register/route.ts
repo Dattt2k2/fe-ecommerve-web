@@ -1,103 +1,128 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
-// Mock user database - trong thực tế sẽ dùng database thật
-let users = [
-  {
-    id: '1',
-    email: 'admin@shopvn.com',
-    password: '$2a$10$rOmF0Xd.FlEYgdLQ8G3yE.DyJ5.oBjO9.WX1FOGOjq5fOqKJO6ume',
-    name: 'Admin',
-    role: 'admin'
-  }
-];
+const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, confirmPassword } = await request.json();
+    // Get the input data
+    const data = await request.json();
+    const { email, password, phone, name, confirmPassword } = data;
 
     // Validate input
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !phone) {
       return NextResponse.json(
         { error: 'Tất cả các trường là bắt buộc' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        }
       );
     }
 
     if (password !== confirmPassword) {
       return NextResponse.json(
         { error: 'Mật khẩu xác nhận không khớp' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Mật khẩu phải có ít nhất 6 ký tự' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        }
       );
     }
 
-    // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email đã được sử dụng' },
-        { status: 409 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      password: hashedPassword,
-      name,
-      role: 'user' as const
-    };
-
-    users.push(newUser);
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: newUser.id, 
-        email: newUser.email, 
-        role: newUser.role 
+    // Call the backend API
+    const backendResponse = await fetch(`${BACKEND_URL}/auth/users/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': '/*',
       },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '7d' }
-    );
+      body: JSON.stringify({ email, password, phone, name }),
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+    });
 
-    // Create response
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role
+    // If backend responds successfully
+    if (backendResponse.ok) {
+      const responseData = await backendResponse.json();
+
+      const response = NextResponse.json({
+        success: true,
+        ...responseData,
+      });
+
+      // Set auth token in cookie
+      if (responseData.access_token) {
+        response.cookies.set('auth-token', responseData.access_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60, // 7 days
+        });
       }
-    });
 
-    // Set HTTP-only cookie
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
-    });
+      return response;
+    }
 
-    return response;
-
+    // If backend responds with an error
+    const errorData = await backendResponse.json();
+    return NextResponse.json(
+      errorData,
+      {
+        status: backendResponse.status,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      }
+    );
   } catch (error) {
+    console.error('Register error:', error);
     return NextResponse.json(
       { error: 'Lỗi server nội bộ' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      }
     );
   }
+}
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 }

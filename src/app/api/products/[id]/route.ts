@@ -1,34 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
+
 /**
  * Route handler cho chi tiết sản phẩm - chuyển tiếp yêu cầu đến backend thực
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   
   try {
-    // URL trực tiếp đến backend - sử dụng endpoint products-info
-    const backendUrl = `http://localhost:8080/api/products-info/${id}`;
+    // Backend endpoint: /products/get/{id} (PUBLIC - không cần auth)
+    const backendUrl = `${BACKEND_URL}/products/get/${id}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
     console.log(`[ProductAPI] Forwarding request to backend: ${backendUrl}`);
-    
-    // Gọi API backend thực
+    console.log(`[ProductAPI] Request method: ${request.method}`);
+    console.log(`[ProductAPI] Request headers:`, headers);
+
+    // Log response status from backend
     const response = await fetch(backendUrl, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers,
       cache: 'no-store'
     });
-    
+    console.log(`[ProductAPI] Backend response status: ${response.status}`);
+    console.log(`[API Route] Backend response headers:`, Object.fromEntries(response.headers));
+
     // Chuyển tiếp phản hồi từ backend
     if (!response.ok) {
-      console.error(`[ProductAPI] Backend returned error status: ${response.status}`);
+      const errorBody = await response.text();
+      console.error(`[ProductAPI] Backend returned error status: ${response.status}`, errorBody);
       return NextResponse.json(
-        { error: `Backend returned status: ${response.status}` },
+        { error: `Backend returned status: ${response.status}`, details: errorBody },
         { status: response.status }
       );
     }
@@ -52,25 +61,26 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   
   try {
     // Lấy dữ liệu từ request
     const productData = await request.json();
     
-    // URL trực tiếp đến backend
-    const backendUrl = `http://localhost:8080/api/products/${id}`;
+    // URL trực tiếp đến backend (sử dụng endpoint phù hợp với backend)
+    const backendUrl = `${BACKEND_URL}/products/${id}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
     console.log(`[ProductAPI] Forwarding PUT request to backend: ${backendUrl}`);
     
     // Gọi API backend thực
     const response = await fetch(backendUrl, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers,
       body: JSON.stringify(productData),
       cache: 'no-store'
     });
@@ -102,22 +112,23 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   
   try {
-    // URL trực tiếp đến backend
-    const backendUrl = `http://localhost:8080/api/products/${id}`;
+    // URL trực tiếp đến backend (sử dụng endpoint phù hợp với backend)
+    const backendUrl = `${BACKEND_URL}/products/${id}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
     console.log(`[ProductAPI] Forwarding DELETE request to backend: ${backendUrl}`);
     
     // Gọi API backend thực
     const response = await fetch(backendUrl, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers,
       cache: 'no-store'
     });
     

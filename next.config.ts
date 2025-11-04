@@ -43,9 +43,31 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:8080/api/:path*', // Proxy to Backend
+        source: '/me/:path*',
+        destination: 'http://api.example.com/me/:path*',
       },
+      // Removed /products rewrite - using /api/proxy/products instead
+      // This allows /products/[id] to render as a Next.js page
+      {
+        source: '/cart/:path*',
+        destination: 'http://api.example.com/cart/:path*',
+      },
+      {
+        source: '/orders/:path*',
+        destination: 'http://api.example.com/orders/:path*',
+      },
+      {
+        source: '/auth/:path*',
+        destination: 'http://api.example.com/auth/:path*',
+      },
+      {
+        source: '/upload/:path*',
+        destination: 'http://api.example.com/upload/:path*',
+      },
+      {
+        source: '/search/:path*',
+        destination: 'http://api.example.com/search/:path*',
+      }
     ];
   },
 };

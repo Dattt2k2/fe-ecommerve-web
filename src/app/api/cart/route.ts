@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://api.example.com';
 
 // GET /api/cart - Get cart items
 export async function GET(request: NextRequest) {

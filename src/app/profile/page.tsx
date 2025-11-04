@@ -131,7 +131,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { forceClientLogout, usersAPI } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
@@ -206,7 +206,7 @@ export default function ProfilePage() {
     }
   }
 
-  const renderContent = () => {
+  const renderContent = useMemo(() => {
     console.log("Rendering content for tab:", activeTab);
     
     // Check other tabs first
@@ -221,7 +221,7 @@ export default function ProfilePage() {
     if (loading) return <div className="text-white">Đang tải thông tin người dùng...</div>;
     if (error) return <div className="text-red-400">{error}</div>;
     return user ? <ProfileDetails user={user} setUser={setUser} /> : <div className="text-white">Không tìm thấy thông tin người dùng. Vui lòng thử lại sau.</div>;
-  };
+  }, [activeTab, loading, error, user, setUser]);
 
   if (!user && !loading && !error)
     return (
@@ -235,7 +235,7 @@ export default function ProfilePage() {
   return (
     <div className="flex min-h-screen">
       <ProfileSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="flex-1 p-6">{renderContent()}</div>
+      <div className="flex-1 p-6">{renderContent}</div>
     </div>
   );
 }

@@ -52,7 +52,7 @@ export default function SellerOrdersPage() {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/seller/orders`,
+        `/orders`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

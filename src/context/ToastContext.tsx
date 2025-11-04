@@ -18,6 +18,7 @@ interface ToastContextType {
   showError: (message: string, duration?: number) => void;
   showWarning: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
+  showOwnProductError: () => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -45,10 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [removeToast]
   );
 
-  const showSuccess = useCallback(
-    (message: string, duration?: number) => showToast(message, 'success', duration),
-    [showToast]
-  );
+  
 
   const showError = useCallback(
     (message: string, duration?: number) => showToast(message, 'error', duration),
@@ -65,8 +63,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [showToast]
   );
 
+  const showSuccess = useCallback((message: string = "Thêm vào giỏ hàng thành công.", duration?: number) => {
+    showToast(message, 'success', duration);
+  }, [showToast]);
+
+  const showOwnProductError = useCallback(() => {
+    showError("Bạn không thể thêm sản phẩm của chính mình vào giỏ hàng.");
+  }, [showError]);
+
   return (
-    <ToastContext.Provider value={{ showToast, showSuccess, showError, showWarning, showInfo }}>
+    <ToastContext.Provider value={{ showToast, showSuccess, showError, showWarning, showInfo, showOwnProductError }}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
@@ -84,7 +90,7 @@ export function useToast() {
 // Toast Container Component
 function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: string) => void }) {
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md w-full pointer-events-none">
+    <div className="fixed top-30 right-4 z-50 space-y-2 max-w-md w-full pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
@@ -97,14 +103,14 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   const getToastStyles = () => {
     switch (toast.type) {
       case 'success':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-800 dark:text-green-200';
+        return 'bg-green-900 border-green-500 text-green-100';
       case 'error':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-800 dark:text-red-200';
+        return 'bg-red-900 border-red-500 text-red-100';
       case 'warning':
-        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500 text-yellow-800 dark:text-yellow-200';
+        return 'bg-yellow-900 border-yellow-500 text-yellow-100';
       case 'info':
       default:
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-800 dark:text-blue-200';
+        return 'bg-blue-900 border-blue-500 text-blue-100';
     }
   };
 

@@ -69,7 +69,7 @@ export default function ImageUploader({
         throw new Error('No access token found. Please login first.');
       }
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://api.example.com';
       const response = await fetch(`${API_URL}/api/user/upload/presigned-url`, {
         method: 'POST',
         headers: { 

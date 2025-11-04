@@ -2,7 +2,7 @@
 import { LoginResponse, RegisterResponse, User, Product, Order } from '@/types';
 
 // Configuration
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://api.example.com';
 const IS_SERVER = typeof window === 'undefined';
 const USE_INTERNAL_API = false; // Always use external API
 
@@ -14,52 +14,61 @@ const DIRECT_BACKEND = true;
 export const API_ENDPOINTS = {
   AUTH: {
     // Always target the gateway `/api` routes so frontend calls go to the API gateway
-    LOGIN: 'auth/users/login',
-    REGISTER: 'auth/users/register',
-    LOGOUT: 'auth/users/logout',
-    REFRESH: 'auth/users/refresh',
-    // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /api/user/users/:id)
+    LOGIN: '/auth/users/login',
+    REGISTER: '/auth/users/register',
+    LOGOUT: '/auth/users/logout',
+    REFRESH: '/auth/users/refresh',
+    // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /users/:id)
   },  PRODUCTS: {
-    LIST: USE_INTERNAL_API ? '/api/products' : '/api/products',
-    DETAIL: (id: string) => USE_INTERNAL_API ? `/api/products-info/${id}` : `/api/products-info/${id}`,
-    CREATE: USE_INTERNAL_API ? '/api/products' : '/api/seller/products',
-    UPDATE: (id: string) => USE_INTERNAL_API ? `/api/products/${id}` : `/api/seller/products/${id}`,
-    DELETE: (id: string) => USE_INTERNAL_API ? `/api/products/${id}` : `/api/seller/products/${id}`,
-    SEARCH: USE_INTERNAL_API ? '/api/products/search' : '/api/products/search',
-    CATEGORIES: USE_INTERNAL_API ? '/api/products/categories' : '/api/products/categories',
+    LIST: USE_INTERNAL_API ? '/products' : '/products',
+    DETAIL: (id: string) => USE_INTERNAL_API ? `/products-info/${id}` : `/products-info/${id}`,
+    CREATE: USE_INTERNAL_API ? '/products' : '/seller/products',
+    UPDATE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
+    DELETE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
+    SEARCH: USE_INTERNAL_API ? '/products/search' : '/products/search',
+    CATEGORIES: USE_INTERNAL_API ? '/products/categories' : '/products/categories',
   },
   ORDERS: {
-    LIST: USE_INTERNAL_API ? '/api/orders' : '/api/orders',
-    DETAIL: (id: string) => USE_INTERNAL_API ? `/api/orders/${id}` : `/api/orders/${id}`,
-    CREATE: USE_INTERNAL_API ? '/api/orders' : '/api/orders',
-    UPDATE: (id: string) => USE_INTERNAL_API ? `/api/orders/${id}` : `/api/orders/${id}`,
-    USER_ORDERS: (userId: string) => USE_INTERNAL_API ? `/api/orders/user/${userId}` : `/api/orders/user/${userId}`,
+    LIST: USE_INTERNAL_API ? '/orders' : '/admin/orders',
+    DETAIL: (id: string) => USE_INTERNAL_API ? `/orders/${id}` : `/admin/orders/${id}`,
+    CREATE: USE_INTERNAL_API ? '/orders' : '/orders',
+    UPDATE: (id: string) => USE_INTERNAL_API ? `/orders/${id}` : `/orders/${id}`,
+    USER_ORDERS: '/api/orders/user', // Always use Next.js proxy route for client-side calls
+    ORDER_FROM_CART: USE_INTERNAL_API ? '/api/orders/cart' : '/order/cart',
+    ORDER_DIRECT: '/api/orders/direct', // Always use Next.js proxy route for client-side calls
+    CANCEL_ORDER: (orderId: string) => USE_INTERNAL_API ? `/api/orders/cancel/${orderId}` : `/user/order/cancel/${orderId}`,
   },
   USERS: {
-    LIST: USE_INTERNAL_API ? '/api/users' : '/api/user/users',
-    DETAIL: () => USE_INTERNAL_API ? `/api/user/users` : `/api/user/users`,
-    UPDATE: () => USE_INTERNAL_API ? `/api/users` : `/api/user/users/update`,
-    DELETE: () => USE_INTERNAL_API ? `/api/users` : `/api/user/users/delete`,
+    LIST: USE_INTERNAL_API ? '/me' : '/me',
+    DETAIL: () => USE_INTERNAL_API ? `/me` : `/me`,
+    UPDATE: () => USE_INTERNAL_API ? `/me` : `/me`,
+    DELETE: () => USE_INTERNAL_API ? `/me` : `/me`,
+  },
+  ADDRESS: {
+    LIST: USE_INTERNAL_API ? '/me/addresses' : '/me/addresses',
+    CREATE: USE_INTERNAL_API ? '/me/addresses' : '/me/addresses',
+    UPDATE: (addressId: string) => USE_INTERNAL_API ? `/me/addresses/${addressId}` : `/me/addresses/${addressId}`,
+    DELETE: (addressId: string) => USE_INTERNAL_API ? `/me/addresses/${addressId}` : `/me/addresses/${addressId}`,
   },
   ADMIN: {
-    DASHBOARD: USE_INTERNAL_API ? '/api/admin/dashboard' : '/api/admin/dashboard',
-    ANALYTICS: USE_INTERNAL_API ? '/api/admin/analytics' : '/api/admin/analytics',
-    CUSTOMERS: USE_INTERNAL_API ? '/api/admin/customers' : '/api/admin/customers',
+    DASHBOARD: USE_INTERNAL_API ? '/admin/dashboard' : '/admin/dashboard',
+    ANALYTICS: USE_INTERNAL_API ? '/admin/analytics' : '/admin/analytics',
+    CUSTOMERS: USE_INTERNAL_API ? '/admin/customers' : '/admin/customers',
   },
   UPLOAD: {
-    PRESIGNED_URL: USE_INTERNAL_API ? '/api/upload/presigned-url' : '/api/user/upload/presigned-url',
-    UPLOAD_FILE: USE_INTERNAL_API ? '/api/upload/file' : '/api/user/upload/file',
+    PRESIGNED_URL: USE_INTERNAL_API ? '/upload/presigned-url' : '/user/upload/presigned-url',
+    UPLOAD_FILE: USE_INTERNAL_API ? '/upload/file' : '/user/upload/file',
   },
   REVIEWS: {
-    LIST: (productId: string) => `/api/user/product/review/${productId}`,
-    CREATE: (productId: string) => `/api/user/product/review/${productId}`,
+    LIST: (productId: string) => `/user/product/review/${productId}`,
+    CREATE: (productId: string) => `/user/product/review/${productId}`,
   },
   CART: {
-    ADD: (productId: string) => `/api/user/cart/add/${productId}`,
-    LIST: '/api/user/cart/get',
-    UPDATE: (itemId: string) => `/api/user/cart/update/${itemId}`,
-    REMOVE: (itemId: string) => `/api/user/cart/delete/${itemId}`,
-    CLEAR: '/api/user/cart/clear',
+    ADD: (productId: string) => `/cart/add/${productId}`,
+    LIST: '/cart/get', // Corrected endpoint
+    UPDATE: (itemId: string) => `/cart/update/${itemId}`,
+    REMOVE: (itemId: string) => `/cart/delete/${itemId}`,
+    CLEAR: '/user/cart/clear',
   }
 };
 
@@ -67,41 +76,16 @@ export const API_ENDPOINTS = {
  * Special fetch function that works consistently on both server and client
  * This ensures no _rsc parameters are added on server components
  */
-async function safeFetch(url: string, options: RequestInit = {}) {
-  // Always use absolute URL
+export async function safeFetch(url: string, options: RequestInit = {}) {
   const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
-  let absoluteUrl = isAbsoluteUrl ? url : new URL(url, API_BASE_URL).toString();
-  
-  // VERY IMPORTANT: Override with direct backend URL to bypass Next.js RSC processing
-  // Either when running on the server or when DIRECT_BACKEND flag is set
-  if (typeof window === 'undefined') {
-    // Parse URL to manipulate it
-    const urlObj = new URL(absoluteUrl);
-    
-    // Extract path and query parts (keep API path intact)
-    const path = urlObj.pathname;
-    const query = urlObj.search;
-    
-    // Remove any potential _rsc params that might have been added
-    urlObj.searchParams.delete('_rsc');
-    
-    // Force the URL to use backend host/port directly
-    urlObj.host = 'localhost:8080';
-    urlObj.protocol = 'http:';
-    absoluteUrl = urlObj.toString();
-  }
+  const absoluteUrl = isAbsoluteUrl ? url : new URL(url, API_BASE_URL).toString();
 
-  // Set no-store for both server and client
   const fetchOptions: RequestInit = {
     ...options,
     cache: 'no-store',
-    mode: 'cors',  // Enable CORS explicitly
-    referrerPolicy: 'no-referrer', // Solve the Referrer Policy issue
-    credentials: 'omit', // Don't send cookies (using Bearer token instead)
-    // Add these headers to prevent Next.js from adding _rsc params
     headers: {
       ...options.headers,
-      'x-nextjs-data': '1',  // Signal this is a data request
+      'x-nextjs-data': '1',
     },
   };
 
@@ -121,7 +105,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     // Determine if this is an internal Next.js API route or external backend API
-    const isInternalRoute = endpoint.startsWith('/api/');
+    const isInternalRoute = endpoint.startsWith('/');
     
     // For internal routes, use relative path. For external, use full backend URL
     const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -137,7 +121,7 @@ class ApiClient {
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': '/*',
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
@@ -476,7 +460,7 @@ export const authAPI = {
   login: (email: string, password: string): Promise<LoginResponse> => {
     // Use Next.js internal API route for login instead of direct backend call
     // This avoids CORS and Referrer Policy issues
-    return fetch('/api/auth/login', {
+    return fetch('/auth/users/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -502,7 +486,7 @@ export const authAPI = {
     apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData, {
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'http://localhost:3000',
+        // 'Origin': 'http://localhost:3000',
       },
       referrerPolicy: 'no-referrer'
     }),
@@ -527,7 +511,7 @@ export const productsAPI = {
     
     // Always use the backend API URL (port 8080)
     try {
-      const baseUrl = 'http://localhost:8080';
+      const baseUrl = 'http://api.example.com';
       // Use a new URL object to ensure it's an absolute URL (prevents Next.js from adding _rsc params)
       const fullUrl = new URL(endpoint, baseUrl).toString();
       
@@ -567,21 +551,14 @@ export const productsAPI = {
   getProduct: async (id: string): Promise<{ product: Product }> => {
     // IMPORTANT: Special handling for Server Components
     if (typeof window === 'undefined') {
-      console.log(`[Server] Getting product ${id} directly from backend`);
+      console.log(`[Server] Getting product ${id} via proxy`);
     }
     
-    // Get auth token - only when in browser environment
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    
-    // Primary endpoint: /api/products-info/:id (backend route for product details)
+    // Use Next.js proxy route handler /api/products/[id]
+    // Note: /products/get/:id is a PUBLIC endpoint, so don't send Authorization header
+    // Sending a stale/invalid token can cause 401 response from backend
     try {
-      const mainEndpoint = `/api/products-info/${id}`;
-      
-      // Use DIRECT_BACKEND pattern for consistent handling
-      const backendUrl = 'http://localhost:8080';
-      
-      // Build a direct URL to backend - completely bypassing Next.js
-      const fullUrl = new URL(mainEndpoint, backendUrl).toString();
+      const proxyEndpoint = `/api/products/${id}`;
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -589,12 +566,14 @@ export const productsAPI = {
         'Cache-Control': 'no-cache',
       };
       
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      // Don't add Authorization header for public product endpoint
       
       // Use our custom fetch helper
-      const response = await safeFetch(fullUrl, {
+      console.log(`[getProduct] Sending request to: ${proxyEndpoint}`);
+      console.log(`[getProduct] Preparing to send request to: ${proxyEndpoint}`);
+      console.log(`[getProduct] Headers:`, headers);
+      console.log(`[getProduct] Fetch options:`, { headers });
+      const response = await safeFetch(proxyEndpoint, {
         headers
       });
       
@@ -603,7 +582,7 @@ export const productsAPI = {
         return data;
       } else {
         const errorText = await response.text();
-        console.error(`[API] Backend returned error for product ${id}:`, {
+        console.error(`[API] Proxy returned error for product ${id}:`, {
           status: response.status,
           body: errorText.substring(0, 500)
         });
@@ -632,20 +611,33 @@ export const productsAPI = {
 };
 
 export const ordersAPI = {
+  // Admin: Get all orders
   getOrders: (params?: Record<string, string>): Promise<{ orders: Order[]; pagination: any }> => 
     apiClient.get(`${API_ENDPOINTS.ORDERS.LIST}${params ? `?${new URLSearchParams(params)}` : ''}`),
   
+  // Get single order by ID
   getOrder: (id: string): Promise<{ order: Order }> => 
     apiClient.get(API_ENDPOINTS.ORDERS.DETAIL(id)),
   
-  createOrder: (orderData: Partial<Order>): Promise<{ message: string; order: Order }> => 
-    apiClient.post(API_ENDPOINTS.ORDERS.CREATE, orderData),
+  // Create order from cart
+  createOrderFromCart: (orderData: any): Promise<{ message: string; order: Order }> => 
+    apiClient.post(API_ENDPOINTS.ORDERS.ORDER_FROM_CART, orderData),
   
+  // Create order directly (buy now)
+  createOrderDirect: (orderData: any): Promise<{ message: string; order: Order }> => 
+    apiClient.post(API_ENDPOINTS.ORDERS.ORDER_DIRECT, orderData),
+  
+  // Update order (admin)
   updateOrder: (id: string, orderData: Partial<Order>): Promise<{ message: string; order: Order }> => 
     apiClient.put(API_ENDPOINTS.ORDERS.UPDATE(id), orderData),
   
-  getUserOrders: (userId: string): Promise<{ orders: Order[] }> => 
-    apiClient.get(API_ENDPOINTS.ORDERS.USER_ORDERS(userId)),
+  // Get user's orders
+  getUserOrders: (): Promise<{ orders: Order[] }> => 
+    apiClient.get(API_ENDPOINTS.ORDERS.USER_ORDERS),
+  
+  // Cancel order
+  cancelOrder: (orderId: string): Promise<{ message: string }> => 
+    apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(orderId), {}),
 };
 
 export const usersAPI = {
@@ -777,7 +769,7 @@ export const cartAPI = {
     cart_item?: any;
     success?: boolean;
   }> => 
-    apiClient.post(`/api/cart/add/${data.product_id}`, {
+    apiClient.post(`/cart/add/${data.product_id}`, {
       quantity: data.quantity,
       size: data.size,
       color: data.color,
@@ -792,26 +784,26 @@ export const cartAPI = {
     total?: number;
     success?: boolean;
   }> =>
-    apiClient.get(`/api/cart`),
+    apiClient.get(`/cart/get`),
   
   // Update cart item quantity
   updateCartItem: (itemId: string, quantity: number): Promise<{
     message?: string;
     success?: boolean;
   }> =>
-    apiClient.put(`/api/cart/${itemId}`, { quantity }),
+    apiClient.put(`/cart/${itemId}`, { quantity }),
   
   // Remove item from cart
   removeFromCart: (itemId: string): Promise<{
     message?: string;
     success?: boolean;
   }> =>
-    apiClient.delete(`/api/cart/${itemId}`),
+    apiClient.delete(`/cart/delete/${itemId}`),
   
   // Clear cart
   clearCart: (): Promise<{
     message?: string;
     success?: boolean;
   }> =>
-    apiClient.delete(`/api/cart/clear`),
+    apiClient.delete(`/cart/clear`),
 };

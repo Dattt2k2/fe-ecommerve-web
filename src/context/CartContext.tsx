@@ -46,7 +46,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         return { items: newItems, total, itemCount };
       } else {
         const newItem: CartItem = {
-          id: `${product.id}-${Date.now()}`,
+          id: product.id, 
           product,
           quantity,
           size: options?.size,
@@ -106,23 +106,35 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const response = await cartAPI.getCart();
         
-        // Backend returns { products: [...], user_id: "..." }
-        if (response.products && Array.isArray(response.products)) {
-          const items = response.products;
-          
-          // Calculate total from products
-          const total = items.reduce((sum: number, item: any) => 
+        // Backend returns { data: [{ items: [...] }] }
+        let cartItems: any[] = [];
+        
+        // Handle different response structures
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          // Extract items from data[0].items
+          cartItems = response.data[0].items || [];
+        } else if (response.products && Array.isArray(response.products)) {
+          // Fallback: old structure
+          cartItems = response.products;
+        } else if (response.items && Array.isArray(response.items)) {
+          // Fallback: direct items
+          cartItems = response.items;
+        }
+        
+        if (cartItems.length > 0) {
+          // Calculate total from cart items
+          const total = cartItems.reduce((sum: number, item: any) => 
             sum + (item.price || 0) * (item.quantity || 0), 0
           );
-          const itemCount = items.reduce((sum: number, item: any) => 
+          const itemCount = cartItems.reduce((sum: number, item: any) => 
             sum + (item.quantity || 0), 0
           );
           
           dispatch({ 
             type: 'SET_CART', 
             payload: { 
-              items: items.map((item: any) => ({
-                id: item.product_id || `${item.product_id}-${Date.now()}`,
+              items: cartItems.map((item: any) => ({
+                id: item.product_id,
                 product: {
                   id: item.product_id,
                   name: item.name,
@@ -142,8 +154,12 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               itemCount
             }
           });
+        } else {
+          // No items in cart
+          dispatch({ type: 'CLEAR_CART' });
         }
       } catch (error) {
+        console.error('Failed to fetch cart:', error);
         // Silently fail - user might not be logged in or cart might be empty
       }
     };
@@ -187,7 +203,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('Parsed error:', { statusCode, errorMessage, errorData }); // Debug
 
         // Handle specific error cases
-        if (statusCode === 403 || statusCode === 500) {
+        if (errorMessage.toLowerCase().includes('already exists in cart')) {
+          errorMessage = 'Sản phẩm này đã có trong giỏ hàng của bạn. Vui lòng cập nhật số lượng trong giỏ hàng.';
+        } else if (statusCode === 403 || statusCode === 500) {
           // Backend returns 500 with error: "cannot add your own product to cart"
           if (errorMessage.toLowerCase().includes('your own product') || 
               errorMessage.toLowerCase().includes('cannot add your own')) {

@@ -1,123 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Order } from '@/types';
+import { safeFetch } from '@/lib/api';
 
-// Mock orders database - should be shared with main route
-let orders: Order[] = [
-  {
-    id: '1',
-    userId: '1',
-    items: [
-      {
-        id: '1',
-        product: {
-          id: '1',
-          name: 'iPhone 14 Pro',
-          description: 'Apple iPhone 14 Pro với camera 48MP, chip A16 Bionic',
-          price: 29990000,
-          originalPrice: 32990000,
-          category: 'smartphones',
-          image: '/api/placeholder/300/300',
-          stock: 10,
-          rating: 4.8,
-          reviews: 120,
-          tags: ['hot', 'sale']
-        },
-        quantity: 1
-      }
-    ],
-    total: 29990000,
-    status: 'delivered',
-    shippingAddress: {
-      id: '1',
-      name: 'Nguyễn Văn A',
-      street: '123 Đường ABC',
-      city: 'TP.HCM',
-      state: 'TP.HCM',
-      zipCode: '700000',
-      country: 'Vietnam'
-    },
-    createdAt: new Date('2023-12-01T10:00:00Z'),
-    updatedAt: new Date('2023-12-01T10:30:00Z')
-  },
-  {
-    id: '2',
-    userId: '2',
-    items: [
-      {
-        id: '2',
-        product: {
-          id: '2',
-          name: 'Samsung Galaxy S23',
-          description: 'Samsung Galaxy S23 với camera 50MP, chip Snapdragon 8 Gen 2',
-          price: 19990000,
-          originalPrice: 22990000,
-          category: 'smartphones',
-          image: '/api/placeholder/300/300',
-          stock: 15,
-          rating: 4.7,
-          reviews: 89,
-          tags: ['new']
-        },
-        quantity: 1
-      }
-    ],
-    total: 19990000,
-    status: 'pending',
-    shippingAddress: {
-      id: '2',
-      name: 'Trần Thị B',
-      street: '456 Đường XYZ',
-      city: 'Hà Nội',
-      state: 'Hà Nội',
-      zipCode: '100000',
-      country: 'Vietnam'
-    },
-    createdAt: new Date('2023-12-02T14:00:00Z'),
-    updatedAt: new Date('2023-12-02T14:00:00Z')
-  }
-];
+const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
 
 // GET /api/orders/[id] - Get order by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
-    const { id } = params;
-    
-    const order = orders.find(o => o.id === id);
-    if (!order) {
+    // Get Authorization header or token from Cookie
+    let authHeader = request.headers.get('authorization');
+    const cookieHeader = request.headers.get('cookie');
+
+    // If no Authorization header, try to extract token from cookie
+    if (!authHeader && cookieHeader) {
+      const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
+      if (tokenMatch) {
+        authHeader = `Bearer ${tokenMatch[1]}`;
+      }
+    }
+
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
+    }
+
+    console.log(`[API /orders/${id}] Proxying GET request to backend using safeFetch`);
+
+    const response = await safeFetch(`${BACKEND_URL}/admin/orders/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
       return NextResponse.json(
-        { error: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
+        { error: errorData || 'Upstream error' },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json({ order });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Lỗi khi lấy thông tin đơn hàng' },
-      { status: 500 }
-    );
+    const data = await response.json();
+    console.log(`[API /orders/${id}] Order fetched successfully`);
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: any) {
+    console.error(`[API /orders/${id}] Error:`, error);
+    return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
   }
 }
 
 // PUT /api/orders/[id] - Update order status (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = params;
-    const { status } = await request.json();
+  const { id } = await params;
 
-    const orderIndex = orders.findIndex(o => o.id === id);
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
-      );
-    }
+  try {
+    const { status } = await request.json();
 
     // Validate status
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -128,64 +74,63 @@ export async function PUT(
       );
     }
 
-    // Update order status
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      status,
-      updatedAt: new Date()
-    };
-
-    return NextResponse.json({
-      message: 'Cập nhật trạng thái đơn hàng thành công',
-      order: orders[orderIndex]
+    // Proxy the update request to the backend
+    const response = await safeFetch(`${BACKEND_URL}/admin/orders/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers.get('authorization') || '',
+      },
+      body: JSON.stringify({ status }),
     });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Lỗi khi cập nhật đơn hàng' },
-      { status: 500 }
-    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        { error: errorData || 'Failed to update order' },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: any) {
+    console.error(`[API /orders/${id}] Error:`, error);
+    return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }
 
 // DELETE /api/orders/[id] - Cancel order
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
-    const { id } = params;
-
-    const orderIndex = orders.findIndex(o => o.id === id);
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Không tìm thấy đơn hàng' },
-        { status: 404 }
-      );
-    }
-
-    // Check if order can be cancelled
-    const order = orders[orderIndex];
-    if (order.status === 'delivered' || order.status === 'cancelled') {
-      return NextResponse.json(
-        { error: 'Không thể hủy đơn hàng này' },
-        { status: 400 }
-      );
-    }
-
-    // Cancel order
-    orders[orderIndex] = {
-      ...order,
-      status: 'cancelled',
-      updatedAt: new Date()
-    };
-
-    return NextResponse.json({
-      message: 'Hủy đơn hàng thành công',
-      order: orders[orderIndex]
+    // Proxy the cancel request to the backend
+    const response = await safeFetch(`${BACKEND_URL}/admin/orders/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers.get('authorization') || '',
+      },
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        { error: errorData || 'Failed to cancel order' },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
   } catch (error) {
+    console.error(`[API /orders/${id}] Error:`, error);
     return NextResponse.json(
-      { error: 'Lỗi khi hủy đơn hàng' },
+      { error: 'Failed to cancel order' },
       { status: 500 }
     );
   }

@@ -1,8 +1,9 @@
+import { useToast } from '@/context/ToastContext';
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://api.example.com';
+const { showOwnProductError, showSuccess } = useToast();
 
-// POST /api/cart/add/[product_id] - Add item to cart
 export async function POST(
   request: NextRequest,
   { params }: { params: { product_id: string } }
@@ -32,13 +33,14 @@ export async function POST(
 
     const data = await response.json().catch(() => ({ message: 'Failed to add to cart' }));
 
+    if (response.ok) {
+      showSuccess('Thêm vào giỏ hàng thành công');
+    }
+
     if (!response.ok) {
-      // Handle 403 - trying to add own product to cart
-      if (response.status === 403) {
-        return NextResponse.json(
-          { message: data.message || 'Bạn không thể thêm sản phẩm của chính mình vào giỏ hàng' },
-          { status: 403 }
-        );
+      // Handle 500 - trying to add own product to cart
+      if (response.status === 500 && data.message?.includes('cannot add your own product')) {
+        showOwnProductError();
       }
       
       return NextResponse.json(data, { status: response.status });

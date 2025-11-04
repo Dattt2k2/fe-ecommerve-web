@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usersAPI } from '@/lib/api';
 import Modal from '@/components/ui/Modal';
 
@@ -35,36 +35,17 @@ const ProfileDetails: React.FC<ProfileDetailsProps> = ({ user, setUser }) => {
     type: 'info',
   });
 
-  // Fetch fresh user data on mount
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.id) return;
-      
-      setFetching(true);
-      try {
-        const response = await usersAPI.getUser(user.id);
-        const userData = response?.user || response;
-        
-        console.log("Fetched user data:", userData);
-        
-        // Update form with fetched data
-        setForm({
-          firstName: userData?.first_name || '',
-          lastName: userData?.last_name || '',
-          email: userData?.email || '',
-          phone: userData?.phone || '',
-        });
-        
-        // Update parent user state
-        setUser(userData);
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-      } finally {
-        setFetching(false);
-      }
-    };
+  // Sử dụng useRef để tránh fetch nhiều lần
+  const hasFetched = useRef(false);
 
-    fetchUserData();
+  // Chỉ update form khi user prop thay đổi, không fetch lại
+  useEffect(() => {
+    setForm({
+      firstName: user?.first_name || '',
+      lastName: user?.last_name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+    });
   }, [user?.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

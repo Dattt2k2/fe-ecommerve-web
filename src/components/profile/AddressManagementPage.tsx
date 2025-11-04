@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api';
+import React, { useEffect, useState, useRef } from 'react';
+import { apiClient } from '@/lib/apiClient';
 
 type Address = {
     id?: string;
@@ -25,11 +25,18 @@ const AddressManagementPage: React.FC = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [addressToDelete, setAddressToDelete] = useState<Address | null>(null);
 
+    // Sử dụng useRef để đảm bảo effect chỉ chạy 1 lần
+    const hasInitialized = useRef(false);
+
+    const handleChange = (k: keyof Address, v: string | boolean) => setForm(prev => ({ ...prev, [k]: v }));
+
     const fetchAddresses = async () => {
         setLoading(true);
         setError(null);
         try {
-            const list: Address[] = await apiClient.get('/api/user/address');
+            console.log('[AddressManagementPage] Fetching addresses...');
+            const list: Address[] = await apiClient.get('/me/addresses');
+            console.log('[AddressManagementPage] Addresses fetched:', list);
             setAddresses(list || []);
         } catch (e: any) {
             console.error('Error fetching addresses:', e);
@@ -39,9 +46,15 @@ const AddressManagementPage: React.FC = () => {
         }
     };
 
-    useEffect(() => { fetchAddresses(); }, []);
-
-    const handleChange = (k: keyof Address, v: string | boolean) => setForm(prev => ({ ...prev, [k]: v }));
+    // Gọi fetchAddresses khi component được mount (chỉ một lần)
+    useEffect(() => {
+        console.log('[AddressManagementPage] useEffect - hasInitialized:', hasInitialized.current);
+        if (!hasInitialized.current) {
+            console.log('[AddressManagementPage] Initializing...');
+            hasInitialized.current = true;
+            fetchAddresses();
+        }
+    }, []);
 
     const handleAddOrUpdate = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -49,9 +62,9 @@ const AddressManagementPage: React.FC = () => {
         setError(null);
         try {
             if (editingAddress) {
-                await apiClient.put(`/api/user/address/${editingAddress.id}`, form);
+                await apiClient.put(`/me/addresses/${editingAddress.id}`, form);
             } else {
-                await apiClient.post('/api/user/address', form);
+                await apiClient.post('/me/addresses', form);
             }
             await fetchAddresses();
             setForm({ street: '', city: '', is_default: false });
@@ -70,7 +83,7 @@ const AddressManagementPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            await apiClient.delete(`/api/user/address/${addressToDelete.id}`);
+            await apiClient.delete(`/me/addresses/${addressToDelete.id}`); 
             await fetchAddresses();
         } catch (err) {
             console.error('Error deleting address:', err);

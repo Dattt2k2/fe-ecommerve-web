@@ -6,9 +6,9 @@ import { API_CONFIG, API_ENDPOINTS } from '@/lib/api';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { product_id: string } }
+  { params }: { params: Promise<{ product_id: string }> }
 ) {
-  const { product_id } = params;
+  const { product_id } = await params;
   
   try {
     const backendUrl = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.REVIEWS.LIST(product_id)}`;
@@ -18,7 +18,7 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': '/*',
       },
       cache: 'no-store'
     });
@@ -56,9 +56,9 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { product_id: string } }
+  { params }: { params: Promise<{ product_id: string }> }
 ) {
-  const { product_id } = params;
+  const { product_id } = await params;
   
   try {
     // Lấy dữ liệu từ request
@@ -72,7 +72,7 @@ export async function POST(
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      'Accept': '/*',
     };
     
     // Forward Authorization header if present

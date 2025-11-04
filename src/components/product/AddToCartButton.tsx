@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { Product } from '@/types';
 import { ShoppingCart, Plus, Minus, Check, AlertCircle } from 'lucide-react';
+import Toast from '@/components/ui/Toast';
 
 interface AddToCartButtonProps {
   product: Product;
@@ -25,6 +26,9 @@ export default function AddToCartButton({
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
 
   const handleAddToCart = async () => {
     if (product.stock <= 0) return;
@@ -41,13 +45,18 @@ export default function AddToCartButton({
 
     if (result.success) {
       setIsAdded(true);
+      setToastType('success');
+      setToastMessage(result.message || 'Đã thêm sản phẩm vào giỏ hàng');
+      setShowToast(true);
       setTimeout(() => setIsAdded(false), 2000);
     } else {
       console.log('AddToCart error result:', result); // Debug
       const errorMsg = result.message || 'Có lỗi xảy ra';
       console.log('Error message to display:', errorMsg); // Debug
       setError(errorMsg);
-      setTimeout(() => setError(''), 5000);
+      setToastType('error');
+      setToastMessage(errorMsg);
+      setShowToast(true);
     }
   };
 
@@ -193,6 +202,15 @@ export default function AddToCartButton({
         )}
       </button>
 
+      {/* Toast Notification */}
+      <Toast
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+        title={toastType === 'success' ? 'Thành công' : 'Thông báo'}
+        message={toastMessage}
+        type={toastType}
+        duration={5000}
+      />
       {inCart && (
         <p className="text-sm text-green-600 dark:text-green-400 text-center">
           ✓ Sản phẩm đã có trong giỏ hàng

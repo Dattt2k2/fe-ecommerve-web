@@ -9,8 +9,8 @@ type Product = {
 }
 
 async function fetchSellerProducts(): Promise<Product[]> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-  const url = `${base}/api/seller/products`
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://api.example.com'
+  const url = `${base}/products/user`
 
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) {

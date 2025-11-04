@@ -3,11 +3,11 @@ import ProductCard from '@/components/product/ProductCard';
 export default async function Home() {
   let featured: import('@/types').Product[] = [];
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/products/get`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://api.example.com'}/products/get/all`, { 
       cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': '/*',
       }
     });
     

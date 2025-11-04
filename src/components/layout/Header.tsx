@@ -180,6 +180,15 @@ export default function Header() {
                               <span className="font-medium">Hồ sơ cá nhân</span>
                             </Link>
                             
+                            <Link 
+                              href="/my-orders" 
+                              onClick={() => setIsMenuOpen(false)} 
+                              className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
+                            >
+                              <Package className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                              <span className="font-medium">Đơn hàng của tôi</span>
+                            </Link>
+                            
                             {displayUser?.role === 'admin' && (
                               <Link 
                                 href="/admin" 
