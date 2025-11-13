@@ -94,7 +94,7 @@ function PaymentForm({
         elements,
         clientSecret,
         confirmParams: {
-          return_url: `${window.location.origin}/payment/success?order_id=${orderId}`,
+          return_url: `${window.location.origin}/payment/success`,
         },
         redirect: 'if_required',
       });

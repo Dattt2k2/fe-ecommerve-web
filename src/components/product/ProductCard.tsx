@@ -41,11 +41,6 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                   Không có ảnh
                 </div>
               )}
-              {product.featured && (
-                <span className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
-                  Nổi bật
-                </span>
-              )}
             </div>
           </SmoothLink>
           
@@ -92,7 +87,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
               
               <div className="flex items-center justify-between mt-auto">
                 <div className="flex flex-col">
-                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     {formatPrice(product.price)}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-500">
@@ -100,25 +95,18 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                    <Heart className="w-5 h-5" />
-                  </button>                  <button className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                    <Eye className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={handleAddToCart}
-                    disabled={product.stock <= 0}
-                    className={`${
-                      product.stock <= 0 
-                        ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    } px-4 py-2 rounded-lg transition-colors flex items-center gap-2 flex-shrink-0`}
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    {product.stock <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
-                  </button>
-                </div>
+                <button 
+                  onClick={handleAddToCart}
+                  disabled={product.stock <= 0}
+                  className={`${
+                    product.stock <= 0 
+                      ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl'
+                  } px-6 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 font-medium`}
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  {product.stock <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+                </button>
               </div>
             </div>
           </div>
@@ -144,21 +132,6 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
               Không có ảnh
             </div>
           )}
-          {product.featured && (
-            <span className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
-              Nổi bật
-            </span>
-          )}
-          
-          {/* Quick Actions */}
-          <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-red-500 rounded-lg shadow-md transition-colors">
-              <Heart className="w-4 h-4" />
-            </button>
-            <button className="p-2 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-500 rounded-lg shadow-md transition-colors">
-              <Eye className="w-4 h-4" />
-            </button>
-          </div>
           
           {/* Stock indicator */}
           {product.stock < 10 && (
@@ -206,8 +179,8 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             ))}
           </div>
         )}
-          <div className="flex items-center justify-between">
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          <div className="flex items-center justify-between gap-3">
+          <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatPrice(product.price)}
           </span>
           <button 
@@ -216,10 +189,10 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             className={`${
               product.stock <= 0 
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            } p-2 rounded-lg transition-colors group`}
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg'
+            } p-2.5 rounded-xl transition-all duration-200 group transform hover:scale-110`}
           >
-            <ShoppingCart className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <ShoppingCart className="w-5 h-5" />
           </button>
         </div>
       </div>

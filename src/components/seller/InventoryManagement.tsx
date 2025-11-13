@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { uploadAPI } from '@/lib/api';
-import { forceClientLogout } from '@/lib/api';
+import { uploadAPI, forceClientLogout, apiClient, API_ENDPOINTS } from '@/lib/api';
 import { processImages, formatFileSize, type ImageProcessingOptions } from '@/lib/imageUtils';
 import { useToast } from '@/context/ToastContext';
 
@@ -91,21 +90,8 @@ export default function InventoryManagement() {
     setLoading(true);
     setError(null);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || localStorage.getItem('auth_token') : null;
-      
-      const headers: Record<string, string> = {
-        'Accept': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const res = await fetch('/api/products?user=true', { headers });
-      
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      
-      const data = await res.json();
+      // Use centralized apiClient which attaches Authorization and will attempt refresh on 401
+      const data = await apiClient.get<any>('/api/products?user=true');
       
       // Check for token expiration
       const bodyErr = data && (data.error || data.message || data.msg);
@@ -222,26 +208,11 @@ export default function InventoryManagement() {
         throw new Error('No access token found. Please login first.');
       }
       
-      const response = await fetch('/upload/presigned-url', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(filesRequest)
-      });
-      
-      if (!response.ok) {
-        const errorMsg = 'Không thể lấy presigned URLs từ server';
-        showError(errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      const data = await response.json();
-     
-      
-      // Backend returns { data: [...], success: true, total: N }
-      const presignedData = data.data || data.results || [];
+  // Use centralized apiClient so auth header and refresh flow are handled
+  const data = await apiClient.post<any>(API_ENDPOINTS.UPLOAD.PRESIGNED_URL, filesRequest);
+
+  // Backend returns { data: [...], success: true, total: N }
+  const presignedData = (data as any).data || (data as any).results || [];
       
       // Upload all files to S3 in parallel
       const uploadPromises = files.map(async (file, index) => {
@@ -292,8 +263,10 @@ export default function InventoryManagement() {
     try {
       setUploadingImages(true);
       
-      // Upload selected images and get S3 keys only
-      let imageKeys: string[] = [...(formData.images as any[])];
+  // Upload selected images and get S3 keys only
+  // formData.images may contain full URLs (for display) or plain S3 keys.
+  // Normalize to pure S3 keys before sending to backend.
+  let imageKeys: string[] = (formData.images || []).map((img: string) => extractS3Key(img));
       
       if (selectedFiles.length > 0) {
         const { s3Keys: uploadedKeys } = await uploadImages(selectedFiles);
@@ -423,9 +396,10 @@ export default function InventoryManagement() {
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     const imagePaths = product.image_path || [];
-    // Extract S3 keys from full URLs
-    const s3Keys = imagePaths.map(extractS3Key);
-    
+    // Use full URLs for display in the edit modal so thumbnails render correctly.
+    // We will extract S3 keys from these URLs when submitting the form.
+    const displayImages = imagePaths;
+
     // Ensure status is always valid (default to 'onsale' if empty or invalid)
     const validStatus = (product.status as any) || 'onsale';
     const isValidStatus = ['onsale', 'offsale', 'unavailable'].includes(validStatus);
@@ -438,7 +412,7 @@ export default function InventoryManagement() {
       category: product.category || '',
       sku: product.sku || '',
       status: isValidStatus ? (validStatus as any) : 'onsale',
-      images: s3Keys // Store S3 keys, not full URLs
+      images: displayImages // Store full URLs for display; extract keys on submit
     });
     setShowModal(true);
   };

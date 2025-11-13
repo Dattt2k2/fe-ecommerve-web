@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       'Authorization': authHeader,
     };
 
-    const response = await fetch(`${BACKEND_URL}/upload/presigned-url`, {
+    const response = await fetch(`${BACKEND_URL}/products/upload/presigned-url`, {
       method: 'POST',
       headers: forwardHeaders,
       body: JSON.stringify(body),

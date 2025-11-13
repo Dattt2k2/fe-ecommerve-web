@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
 import { CreditCard, Truck, MapPin, Phone, Mail } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/context/ToastContext';
 
 export default function CheckoutPage() {
   const { items, total, itemCount, clearCart } = useCart();
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentWindowRef, setPaymentWindowRef] = useState<Window | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     fullName: '',
@@ -24,6 +27,25 @@ export default function CheckoutPage() {
     paymentMethod: 'cod', // cod, credit, momo
   });
 
+  // Lắng nghe message từ window con (payment window)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Chỉ accept message từ origin của chúng ta
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === 'payment-success') {
+        console.log('Payment successful:', event.data.paymentId);
+        showSuccess('Thanh toán thành công!');
+        clearCart();
+        // Chuyển hướng đến trang danh sách đơn hàng
+        router.push('/my-orders');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [router, clearCart, showSuccess]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -33,12 +55,106 @@ export default function CheckoutPage() {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Simulate order processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const authToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1];
 
-    // Clear cart and redirect to success page
-    clearCart();
-    router.push('/checkout/success');
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      
+      // Gọi backend để tạo order
+      const orderResponse = await fetch(`${BACKEND_URL}/order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: item.product.price,
+            size: item.size,
+            color: item.color,
+          })),
+          customerEmail: formData.email,
+          customerName: formData.fullName,
+          customerPhone: formData.phone,
+          shippingAddress: formData.address,
+          shippingCity: formData.city,
+          shippingDistrict: formData.district,
+          shippingWard: formData.ward,
+          note: formData.note,
+          paymentMethod: formData.paymentMethod,
+          totalAmount: total,
+        }),
+        mode: 'cors',
+      });
+
+      console.log('[Checkout] Order response status:', orderResponse.status);
+
+      // Extract orderId từ JSON response
+      let orderId = 'unknown';
+      try {
+        const responseData = await orderResponse.json();
+        console.log('[Checkout] Response data:', responseData);
+        
+        // Lấy order_id từ response (backend trả về order_id)
+        orderId = responseData?.order_id || 'unknown';
+        console.log('[Checkout] Extracted order ID:', orderId);
+        console.log('[Checkout] Full response keys:', Object.keys(responseData || {}));
+        
+        // Lưu order_id vào localStorage cho payment page
+        if (orderId !== 'unknown') {
+          localStorage.setItem('current_order_id', orderId);
+          console.log('[Checkout] Saved order_id to localStorage:', orderId);
+        }
+      } catch (e) {
+        console.warn('[Checkout] Could not parse JSON response');
+        // Thử extract từ URL nếu có redirect
+        try {
+          const responseUrl = new URL(orderResponse.url);
+          orderId = responseUrl.searchParams.get('order_id') || 'unknown';
+          console.log('[Checkout] Extracted order ID from URL:', orderId);
+          if (orderId !== 'unknown') {
+            localStorage.setItem('current_order_id', orderId);
+          }
+        } catch (urlErr) {
+          console.warn('[Checkout] Could not extract order ID');
+        }
+      }
+
+      // Nếu là thanh toán COD, xong rồi
+      if (formData.paymentMethod === 'cod' || formData.paymentMethod === 'COD') {
+        showSuccess('Đơn hàng đã được tạo thành công!');
+        clearCart();
+        setTimeout(() => {
+          router.push('/my-orders');
+        }, 1500);
+        return;
+      }
+
+      // Nếu là thanh toán online (credit or momo), mở tab payment mới với orderId
+      const paymentUrl = `/payment?order_id=${encodeURIComponent(orderId)}&amount=${total}&email=${encodeURIComponent(formData.email)}`;
+      console.log('[Checkout] Opening payment tab:', paymentUrl);
+      
+      const paymentWindow = window.open(paymentUrl, 'payment_window');
+      
+      if (paymentWindow) {
+        console.log('[Checkout] Payment window opened successfully');
+        setPaymentWindowRef(paymentWindow);
+      } else {
+        console.error('[Checkout] Payment window blocked');
+        showError('Trình duyệt đã chặn cửa sổ thanh toán. Vui lòng kiểm tra cài đặt popup.');
+      }
+      
+      setIsProcessing(false);
+    } catch (error: any) {
+      console.error('[Checkout] Error:', error);
+      showError(error.message || 'Có lỗi xảy ra khi đặt hàng');
+      setIsProcessing(false);
+    }
   };
 
   if (items.length === 0) {

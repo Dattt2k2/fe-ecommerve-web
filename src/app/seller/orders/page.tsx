@@ -4,24 +4,37 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/utils';
-import { forceClientLogout } from '@/lib/api';
+import { forceClientLogout, apiClient, API_ENDPOINTS } from '@/lib/api';
 import { ChevronRight, Package, Clock, Check, X } from 'lucide-react';
 
 interface Order {
-  id: string;
-  userId: string;
+  id?: string;
+  ID?: string;
+  OrderID?: string;
+  userId?: string;
+  UserID?: string;
   items: Array<{
-    productId: string;
+    productId?: string;
+    ProductID?: string;
     quantity: number;
+    Quantity?: number;
     price: number;
+    Price?: number;
     name?: string;
+    Name?: string;
   }>;
-  totalPrice: number;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
-  createdAt: string;
-  updatedAt: string;
+  totalPrice?: number;
+  TotalPrice?: number;
+  status?: string;
+  Status?: string;
+  createdAt?: string;
+  CreatedAt?: string;
+  updatedAt?: string;
+  UpdatedAt?: string;
   shippingAddress?: string;
+  ShippingAddress?: string;
   customerEmail?: string;
+  CustomerEmail?: string;
 }
 
 export default function SellerOrdersPage() {
@@ -31,14 +44,22 @@ export default function SellerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[SellerOrders] useEffect triggered - isAuthenticated:', isAuthenticated, 'user:', user?.id);
     if (!isAuthenticated || !user) {
+      console.log('[SellerOrders] Not authenticated, redirecting to login');
       router.push('/auth/login');
       return;
     }
+    console.log('[SellerOrders] Authenticated, calling fetchOrders');
     fetchOrders();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user?.id, currentPage, filter, selectedMonth, selectedYear]);
 
   const fetchOrders = async () => {
     try {
@@ -51,15 +72,36 @@ export default function SellerOrdersPage() {
         return;
       }
 
-      const response = await fetch(
-        `/orders`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Build query params
+      const queryParams = new URLSearchParams();
+      queryParams.append('page', currentPage.toString());
+      queryParams.append('limit', '10');
+      
+      // Add status filter if not 'all'
+      if (filter !== 'all') {
+        queryParams.append('status', filter);
+      }
+      
+      // Add month filter if selected
+      if (selectedMonth !== null) {
+        queryParams.append('month', selectedMonth.toString());
+      }
+      
+      // Add year filter if selected
+      if (selectedYear !== null) {
+        queryParams.append('year', selectedYear.toString());
+      }
+
+      const apiUrl = `/api/seller/orders?${queryParams.toString()}`;
+      console.log('[SellerOrders] Fetching from:', apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('[SellerOrders] Response status:', response.status);
 
       if (response.status === 401) {
         forceClientLogout();
@@ -69,18 +111,63 @@ export default function SellerOrdersPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errMsg = errorData?.message || errorData?.error || `Lỗi ${response.status}`;
+        console.error('[SellerOrders] Error:', errMsg);
         setError(errMsg);
         return;
       }
 
       const data = await response.json();
-      // Handle array or wrapped response
-      const orderList = Array.isArray(data) 
-        ? data 
-        : data.orders || data.data?.orders || [];
+      console.log('[SellerOrders] Data received:', data);
       
-      setOrders(orderList);
+      // Handle different response structures
+      let orderList: any[] = [];
+      if (data?.data && Array.isArray(data.data)) {
+        orderList = data.data;
+      } else if (Array.isArray(data)) {
+        orderList = data;
+      } else if (data?.orders) {
+        orderList = data.orders;
+      }
+      
+      console.log('[SellerOrders] Order list:', orderList);
+      
+      // Normalize order data (convert PascalCase to camelCase)
+      const normalizeStatus = (s: any) => {
+        if (!s && s !== 0) return 'PENDING';
+        const raw = String(s).toUpperCase();
+        // Normalize common variants
+        if (raw === 'CANCELED' || raw === 'CANCELLED') return 'CANCELLED';
+        if (raw.includes('PENDING')) return 'PENDING';
+        if (raw === 'PROCESSING') return 'PROCESSING';
+        if (raw === 'DELIVERING' || raw === 'SHIPPING') return 'DELIVERING';
+        if (raw === 'DELIVERED' || raw === 'COMPLETED') return 'DELIVERED';
+        return raw;
+      };
+
+      const normalizedOrders = orderList.map((order: any) => ({
+        id: order.OrderID || order.ID || order.id,
+        userId: order.UserID || order.user_id || order.userId,
+        items: (order.Items || order.items || []).map((item: any) => ({
+          productId: item.ProductID || item.product_id || item.productId,
+          quantity: item.Quantity || item.quantity || 0,
+          price: item.Price || item.price || 0,
+          name: item.Name || item.name,
+        })),
+        totalPrice: order.TotalPrice || order.total_price || order.totalPrice || 0,
+        // Normalize status variants so UI shows correct badge (e.g. CANCELED -> CANCELLED)
+        status: normalizeStatus(order.Status || order.status || order.PaymentStatus || 'PENDING'),
+        createdAt: order.CreatedAt || order.created_at || order.createdAt,
+        updatedAt: order.UpdatedAt || order.updated_at || order.updatedAt,
+        shippingAddress: order.ShippingAddress || order.shipping_address || order.shippingAddress,
+        customerEmail: order.CustomerEmail || order.customer_email || order.customerEmail,
+      }));
+      
+      console.log('[SellerOrders] Normalized orders:', normalizedOrders);
+      console.log('[SellerOrders] Setting orders, length:', normalizedOrders.length);
+      setOrders(normalizedOrders);
+      console.log('[SellerOrders] After setOrders');
     } catch (err) {
+      console.error('[SellerOrders] Fetch error:', err);
       setError('Không thể tải danh sách đơn hàng');
     } finally {
       setLoading(false);
@@ -88,15 +175,15 @@ export default function SellerOrdersPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Chờ xác nhận', icon: Clock },
-      confirmed: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Đã xác nhận', icon: Check },
-      shipped: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Đã gửi', icon: Package },
-      delivered: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giao', icon: Check },
-      cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Đã hủy', icon: X },
+    const statusConfig: Record<string, any> = {
+      PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Chờ xác nhận', icon: Clock },
+      PROCESSING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Đang xử lý', icon: Check },
+      DELIVERING: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Đang giao', icon: Package },
+      DELIVERED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giao', icon: Check },
+      CANCELLED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Đã hủy', icon: X },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.PENDING;
     const Icon = config.icon;
 
     return (
@@ -107,11 +194,66 @@ export default function SellerOrdersPage() {
     );
   };
 
+  const getNextStatus = (currentStatus: string): string | null => {
+    const statusFlow: Record<string, string> = {
+      PENDING: 'PROCESSING',
+      PROCESSING: 'DELIVERING',
+      DELIVERING: 'DELIVERED',
+    };
+    return statusFlow[currentStatus] || null;
+  };
+
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    await updateOrderStatus(orderId, newStatus);
+    setSelectedStatus(null);
+    setExpandedOrderId(null);
+  };
+
+  const expandedOrder = expandedOrderId ? orders.find(o => o.id === expandedOrderId) : null;
+
+  useEffect(() => {
+    console.log('[SellerOrders] expandedOrderId changed:', expandedOrderId);
+    console.log('[SellerOrders] expandedOrder:', expandedOrder);
+    console.log('[SellerOrders] orders list:', orders);
+  }, [expandedOrderId, expandedOrder, orders]);
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      console.log(`[SellerOrders] Updating order ${orderId} to status ${newStatus}`);
+      
+      console.log('[SellerOrders] Calling update-status endpoint for order:', orderId, 'status:', newStatus);
+      const updResp = await apiClient.post(`/orders/${orderId}/update-status`, { status: newStatus });
+      console.log('[SellerOrders] Update-status API response:', updResp);
+
+      console.log('[SellerOrders] Status updated successfully');
+      // Refresh orders list
+      fetchOrders();
+    } catch (err) {
+      console.error('[SellerOrders] Update status error:', err);
+      setError('Không thể cập nhật trạng thái đơn hàng');
+    }
+  };
+
+  // Dedicated cancel handler so UI buttons call cancel endpoint explicitly
+  const cancelOrder = async (orderId: string) => {
+    try {
+      console.log('[SellerOrders] Cancelling order:', orderId);
+      const resp = await apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(orderId));
+      console.log('[SellerOrders] Cancel API response:', resp);
+      fetchOrders();
+    } catch (err) {
+      console.error('[SellerOrders] Cancel order error:', err);
+      setError('Không thể hủy đơn hàng');
+    }
+  };
+
   const filteredOrders = filter === 'all' 
     ? orders 
     : orders.filter(o => o.status === filter);
 
-  const totalRevenue = filteredOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+  console.log('[SellerOrders] Render - orders:', orders.length, 'filteredOrders:', filteredOrders.length, 'filter:', filter);
+
+  const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
 
   if (loading) {
     return (
@@ -147,13 +289,25 @@ export default function SellerOrdersPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <p className="text-gray-600 dark:text-gray-400 text-sm">Chờ xác nhận</p>
           <p className="text-2xl font-bold text-yellow-600 mt-1">
-            {filteredOrders.filter(o => o.status === 'pending').length}
+            {filteredOrders.filter(o => o.status === 'PENDING').length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Đang xử lý</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">
+            {filteredOrders.filter(o => o.status === 'PROCESSING').length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Đang giao</p>
+          <p className="text-2xl font-bold text-purple-600 mt-1">
+            {filteredOrders.filter(o => o.status === 'DELIVERING').length}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <p className="text-gray-600 dark:text-gray-400 text-sm">Đã giao</p>
           <p className="text-2xl font-bold text-green-600 mt-1">
-            {filteredOrders.filter(o => o.status === 'delivered').length}
+            {filteredOrders.filter(o => o.status === 'DELIVERED').length}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
@@ -163,26 +317,79 @@ export default function SellerOrdersPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const).map(status => (
-          <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === status
-                ? 'bg-primary text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            {status === 'all' ? 'Tất cả' : {
-              pending: 'Chờ xác nhận',
-              confirmed: 'Đã xác nhận',
-              shipped: 'Đã gửi',
-              delivered: 'Đã giao',
-              cancelled: 'Đã hủy',
-            }[status]}
-          </button>
-        ))}
+      <div className="space-y-4">
+        {/* Status Filter */}
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'PENDING', 'PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED'] as const).map(status => (
+            <button
+              key={status}
+              onClick={() => setFilter(status as any)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filter === status
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              {status === 'all' ? 'Tất cả' : {
+                PENDING: 'Chờ xác nhận',
+                PROCESSING: 'Đang xử lý',
+                DELIVERING: 'Đang giao',
+                DELIVERED: 'Đã giao',
+                CANCELLED: 'Đã hủy',
+              }[status]}
+            </button>
+          ))}
+        </div>
+
+        {/* Month/Year Filter */}
+        <div className="flex gap-4 flex-wrap bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tháng:</label>
+            <select
+              value={selectedMonth || ''}
+              onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value) : null)}
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Tất cả các tháng</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  Tháng {i + 1}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Năm:</label>
+            <select
+              value={selectedYear || ''}
+              onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Tất cả các năm</option>
+              {Array.from({ length: 5 }, (_, i) => {
+                const year = new Date().getFullYear() - i;
+                return (
+                  <option key={year} value={year}>
+                    Năm {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {(selectedMonth !== null || selectedYear !== null) && (
+            <button
+              onClick={() => {
+                setSelectedMonth(null);
+                setSelectedYear(null);
+              }}
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white rounded-lg font-medium transition-colors"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error Message */}
@@ -217,24 +424,49 @@ export default function SellerOrdersPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredOrders.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{order.id.slice(0, 8)}...</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{(order.id || 'N/A').slice(0, 8)}...</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                      {order.items.reduce((sum, item) => sum + item.quantity, 0)} sản phẩm
+                      {order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} sản phẩm
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary">
-                      {formatPrice(order.totalPrice)}
+                      {formatPrice(order.totalPrice || 0)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(order.status)}
+                      {getStatusBadge(order.status || 'pending')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button className="text-primary hover:text-orange-600 flex items-center gap-1 font-medium transition-colors">
-                        Chi tiết
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            const newId = (order.id || '') === expandedOrderId ? null : (order.id || '');
+                            console.log('[SellerOrders] Setting expandedOrderId:', newId);
+                            setExpandedOrderId(newId);
+                          }}
+                          className="text-primary hover:text-orange-600 flex items-center gap-1 font-medium transition-colors"
+                        >
+                          Chi tiết
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        {(order.status === 'PENDING' || order.status === 'PROCESSING') && (
+                          <button
+                            onClick={() => updateOrderStatus(order.id || '', 'DELIVERING')}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            Đang giao
+                          </button>
+                        )}
+                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+                          <button
+                            onClick={() => cancelOrder(order.id || '')}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+                          >
+                            Hủy
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -243,6 +475,127 @@ export default function SellerOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Chi tiết đơn hàng */}
+      {expandedOrderId && expandedOrder && (
+        <div 
+          className="fixed top-0 left-0 right-0 bottom-0 bg-black/40 z-50 flex flex-col justify-start pt-[15vh] p-4 overflow-y-auto"
+          onClick={() => setExpandedOrderId(null)}
+        >
+          <div 
+            className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden mx-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Content */}
+            <div className="p-8 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto bg-slate-800">
+              {/* Mã đơn hàng */}
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Mã đơn hàng</label>
+                <p className="text-lg font-mono font-semibold text-white mt-1 break-all">{expandedOrder.id}</p>
+              </div>
+
+              {/* Trạng thái với Buttons */}
+              <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3 block">Trạng thái đơn hàng</label>
+                <div className="flex items-center gap-3 mb-6">
+                  {getStatusBadge(expandedOrder.status || 'PENDING')}
+                  <p className="text-base font-semibold text-white">
+                    {(() => {
+                      const statusMap: Record<string, string> = {
+                        PENDING: 'Chờ xác nhận',
+                        PROCESSING: 'Đang xử lý',
+                        DELIVERING: 'Đang giao',
+                        DELIVERED: 'Đã giao',
+                        CANCELLED: 'Đã hủy',
+                      };
+                      return statusMap[expandedOrder.status || 'PENDING'] || 'Không xác định';
+                    })()}
+                  </p>
+                </div>
+                
+                <div className="flex flex-wrap gap-3">
+                  {(expandedOrder.status === 'PENDING' || expandedOrder.status === 'PROCESSING') && (
+                    <button
+                      onClick={() => handleStatusChange(expandedOrder.id || '', 'DELIVERING')}
+                      className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                    >
+                      ✓ Chuyển sang Đang giao
+                    </button>
+                  )}
+                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && (
+                    <button
+                      onClick={() => { cancelOrder(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
+                      className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                    >
+                      ✕ Hủy đơn hàng
+                    </button>
+                  )}
+                  {expandedOrder.status === 'DELIVERING' && (
+                    <button
+                      onClick={() => handleStatusChange(expandedOrder.id || '', 'DELIVERED')}
+                      className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                    >
+                      Đã giao
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Thông tin giao hàng */}
+              <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3 block">Địa chỉ giao hàng</label>
+                <p className="text-white font-medium leading-relaxed">{expandedOrder.shippingAddress || 'N/A'}</p>
+              </div>
+
+              {/* Danh sách sản phẩm */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-4 block">Sản phẩm trong đơn hàng</label>
+                <div className="space-y-3 bg-slate-700 p-6 rounded-lg border border-slate-600">
+                  {expandedOrder.items && expandedOrder.items.length > 0 ? (
+                    expandedOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center pb-3 border-b border-slate-600 last:border-b-0 last:pb-0">
+                        <div className="flex-1">
+                          <p className="font-semibold text-white text-sm">{item.name || 'Sản phẩm'}</p>
+                          <p className="text-xs text-slate-400 mt-1">Số lượng: <span className="font-semibold">{item.quantity || 0}</span></p>
+                        </div>
+                        <p className="font-bold text-orange-400 ml-4 text-sm">{formatPrice(item.price || 0)}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-400 text-center py-4">Không có sản phẩm</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Tổng tiền */}
+              <div className="flex justify-between items-center p-6 bg-gradient-to-r from-orange-600 to-orange-500 rounded-lg border border-orange-400">
+                <p className="text-sm font-semibold text-white uppercase tracking-wide">Tổng tiền:</p>
+                <p className="text-2xl font-bold text-white">{formatPrice(expandedOrder.totalPrice || 0)}</p>
+              </div>
+
+              {/* Ngày tạo */}
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1 block">Ngày đặt hàng</label>
+                <p className="text-white font-medium">
+                  {expandedOrder.createdAt ? new Date(expandedOrder.createdAt).toLocaleString('vi-VN') : 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-4 border-t border-slate-600 flex justify-end gap-3 bg-slate-700">
+              <button
+                onClick={() => {
+                  setExpandedOrderId(null);
+                }}
+                className="px-6 py-2.5 border border-slate-500 rounded-lg text-white hover:bg-slate-600 transition-all duration-200 font-semibold text-sm"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

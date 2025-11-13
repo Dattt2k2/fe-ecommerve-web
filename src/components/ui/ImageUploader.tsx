@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
-import { uploadAPI } from '@/lib/api';
+import { uploadAPI, apiClient, API_ENDPOINTS } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 
 interface ImageUploaderProps {
@@ -62,30 +62,10 @@ export default function ImageUploader({
 
       const requestBody = JSON.stringify(filesRequest);
 
-      // Get access token from localStorage
-      const accessToken = localStorage.getItem('auth_token');
-      if (!accessToken) {
-        showError('Vui lòng đăng nhập để tải ảnh lên');
-        throw new Error('No access token found. Please login first.');
-      }
+      // Use centralized apiClient to get presigned URLs via the Next.js proxy
+      const data = await apiClient.post<any>(API_ENDPOINTS.UPLOAD.PRESIGNED_URL, filesRequest);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://api.example.com';
-      const response = await fetch(`${API_URL}/api/user/upload/presigned-url`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: requestBody // Send as array
-      });
-
-
-      if (!response.ok) {
-        showError('Không thể lấy URL upload từ server');
-        throw new Error('Failed to get presigned URLs');
-      }
-
-      const data = await response.json();
+      // Normalize response
       
       // Backend returns { data: [...], success: true, total: N }
       const presignedData = data.data || data.results || [];

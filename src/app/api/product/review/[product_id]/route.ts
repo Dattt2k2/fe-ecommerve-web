@@ -39,8 +39,17 @@ export async function GET(
       );
     }
     
-    const data = await response.json();
-    return NextResponse.json(data);
+    const responseText = await response.text();
+    try {
+      const data = JSON.parse(responseText);
+      return NextResponse.json(data);
+    } catch (parseError) {
+      console.error('[ReviewAPI] Failed to parse JSON response:', responseText);
+      return NextResponse.json(
+        { error: 'Invalid JSON response from backend', details: responseText },
+        { status: 500 }
+      );
+    }
     
   } catch (error) {
     console.error(`[ReviewAPI] Error on GET: ${error instanceof Error ? error.message : String(error)}`);
@@ -105,8 +114,17 @@ export async function POST(
       );
     }
     
-    const data = await response.json();
-    return NextResponse.json(data, { status: 201 });
+    const responseText = await response.text();
+    try {
+      const data = JSON.parse(responseText);
+      return NextResponse.json(data, { status: 201 });
+    } catch (parseError) {
+      console.error('[ReviewAPI] Failed to parse JSON response:', responseText);
+      return NextResponse.json(
+        { error: 'Invalid JSON response from backend', details: responseText },
+        { status: 500 }
+      );
+    }
     
   } catch (error) {
     console.error(`[ReviewAPI] Error on POST: ${error instanceof Error ? error.message : String(error)}`);

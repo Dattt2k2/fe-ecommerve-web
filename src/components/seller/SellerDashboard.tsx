@@ -12,6 +12,7 @@ export default function SellerDashboard({ children }: { children?: React.ReactNo
     const menuItems = [
         { id: 'inventory', label: 'Kho hàng', icon: Package, href: '/seller/inventory' },
         { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart, href: '/seller/orders' },
+        { id: 'account', label: 'Tài khoản bán hàng', icon: Package, href: '/seller/account' },
     ];
 
     const handleMenuClick = (href: string) => {

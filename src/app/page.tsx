@@ -72,12 +72,9 @@ export default async function Home() {
     <div>
 
       {/* Featured Products */}
-      <section className="py-8 sm:py-12 lg:py-16 bg-gradient-to-b from-gray-50 to-gray-900 dark:from-gray-800 dark:to-black">
+      <section className="py-8 sm:py-12 lg:py-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center mb-8 lg:mb-12 text-gray-900 dark:text-gray-100">
-              Sản phẩm nổi bật
-            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
             {featured.map((p: import('@/types').Product) => (
               <ProductCard key={p.id} product={p} />

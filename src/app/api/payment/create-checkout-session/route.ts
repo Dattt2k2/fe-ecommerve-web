@@ -66,15 +66,19 @@ export async function POST(request: NextRequest) {
       total_amount: amount,
     });
 
+    // Get frontend URL (use NEXT_PUBLIC_SITE_URL for frontend, NEXT_PUBLIC_API_URL is for backend)
+    const frontendUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
+    console.log('[API] Using frontend URL:', frontendUrl);
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/checkout/success?order_id=${orderId}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/order?productId=${orderId}`,
+      success_url: `${frontendUrl}/checkout/success?order_id=${orderId}`,
+      cancel_url: `${frontendUrl}/order?productId=${orderId}`,
       metadata: {
-        orderId: orderId,
+        order_id: orderId,
         email: email || '',
       },
       customer_email: email,

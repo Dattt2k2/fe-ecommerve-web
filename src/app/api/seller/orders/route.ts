@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
 
-// GET /api/orders/user - Get current user's orders
+// GET /api/seller/orders - Get seller's orders
 export async function GET(request: NextRequest) {
   try {
     // Get Authorization header or token from Cookie
@@ -25,9 +25,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = searchParams.get('page') || '1';
     const limit = searchParams.get('limit') || '10';
+    const month = searchParams.get('month'); // Optional: filter by month (1-12)
+    const year = searchParams.get('year');   // Optional: filter by year
+    const status = searchParams.get('status'); // Optional: filter by status (pending, confirmed, shipped, delivered, cancelled)
     
-    const backendUrl = `${BACKEND_URL}/order/user?page=${page}&limit=${limit}`;
-    console.log('[API /orders/user] Proxying GET request to backend:', backendUrl);
+    // Build query string with all params
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('limit', limit);
+    if (month) queryParams.append('month', month);
+    if (year) queryParams.append('year', year);
+    if (status) queryParams.append('status', status);
+    
+    const backendUrl = `${BACKEND_URL}/orders?${queryParams.toString()}`;
+    console.log('[API /seller/orders] Proxying GET request to backend:', backendUrl);
 
     // Build headers for backend request
     const forwardHeaders: Record<string, string> = {
@@ -41,7 +52,7 @@ export async function GET(request: NextRequest) {
       headers: forwardHeaders,
     });
 
-    console.log('[API /orders/user] Backend response status:', response.status);
+    console.log('[API /seller/orders] Backend response status:', response.status);
 
     const text = await response.text();
     let data: any = null;
@@ -53,15 +64,15 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: data || 'Failed to fetch user orders' },
+        { error: data || 'Failed to fetch seller orders' },
         { status: response.status }
       );
     }
 
-    console.log('[API /orders/user] User orders fetched successfully');
+    console.log('[API /seller/orders] Seller orders fetched successfully');
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
-    console.error('[API /orders/user] Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch user orders' }, { status: 500 });
+    console.error('[API /seller/orders] Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch seller orders' }, { status: 500 });
   }
 }

@@ -146,7 +146,7 @@ export default function ProductDetailPage() {
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`/api/proxy/products/${params.id}/create-reviews`, {
+      const response = await fetch(`/api/proxy/products/create-reviews/${params.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newReview),

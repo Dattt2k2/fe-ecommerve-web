@@ -9,8 +9,9 @@ type Product = {
 }
 
 async function fetchSellerProducts(): Promise<Product[]> {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://api.example.com'
-  const url = `${base}/products/user`
+  // Use Next.js internal proxy route so requests go through the app's API gateway
+  // This allows forwarding of auth cookies and keeps client/server behavior consistent.
+  const url = `/api/products?user=true`;
 
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) {

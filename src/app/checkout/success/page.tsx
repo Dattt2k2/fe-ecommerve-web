@@ -1,8 +1,23 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle, Package, Truck, Mail } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CheckoutSuccessPage() {
+  const router = useRouter();
   const orderNumber = `VN${Date.now().toString().slice(-6)}`;
+
+  useEffect(() => {
+    // Redirect to my-orders after 3 seconds
+    const timer = setTimeout(() => {
+      console.log('[CheckoutSuccess] Redirecting to /my-orders');
+      router.push('/my-orders');
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -55,10 +70,10 @@ export default function CheckoutSuccessPage() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/profile/orders"
+            href="/my-orders"
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            Theo dõi đơn hàng
+            Xem đơn hàng của tôi
           </Link>
           
           <Link
@@ -69,7 +84,13 @@ export default function CheckoutSuccessPage() {
           </Link>
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-blue-600 dark:text-blue-400 animate-pulse">
+            Đang tự động chuyển đến trang đơn hàng trong 3 giây...
+          </p>
+        </div>
+
+        <div className="mt-4 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Cần hỗ trợ? Liên hệ{' '}
             <Link href="/contact" className="text-blue-600 dark:text-blue-400 hover:underline">

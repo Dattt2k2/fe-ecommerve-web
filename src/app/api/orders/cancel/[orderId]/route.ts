@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001';
 
 // POST /api/orders/cancel/[orderId] - Cancel order
 export async function POST(
@@ -27,6 +27,7 @@ export async function POST(
     }
 
     console.log(`[API /orders/cancel/${orderId}] Cancelling order`);
+    console.log(`[API /orders/cancel/${orderId}] Backend URL: ${BACKEND_URL}`);
 
     // Build headers for backend request
     const forwardHeaders: Record<string, string> = {
@@ -35,7 +36,11 @@ export async function POST(
       'Authorization': authHeader,
     };
 
-    const response = await fetch(`${BACKEND_URL}/user/order/cancel/${orderId}`, {
+    // Backend endpoint: /order/cancel/:order_id
+    const backendUrl = `${BACKEND_URL}/order/cancel/${orderId}`;
+    console.log(`[API /orders/cancel/${orderId}] Calling backend: ${backendUrl}`);
+
+    const response = await fetch(backendUrl, {
       method: 'POST',
       headers: forwardHeaders,
     });

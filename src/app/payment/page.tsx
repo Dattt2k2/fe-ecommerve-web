@@ -1,109 +1,118 @@
 'use client';
 
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { StripeProvider } from '@/components/payment/StripeProvider';
+import StripePaymentModal from '@/components/payment/StripePaymentModal';
 import { useToast } from '@/context/ToastContext';
-import { useAuth } from '@/context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { CreditCard, Loader } from 'lucide-react';
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { showError, showSuccess } = useToast();
-  const { user: authUser } = useAuth();
-  
-  const orderId = searchParams.get('order_id');
-  const [loading, setLoading] = useState(true);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    orderId: '',
+    amount: 0,
+    email: '',
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const createCheckoutSession = async () => {
-      if (!orderId) {
-        showError('Không có thông tin đơn hàng');
-        router.push('/');
-        return;
-      }
+    // Get payment details from URL parameters
+    const order_id = searchParams.get('order_id');
+    const amount = searchParams.get('amount');
+    const email = searchParams.get('email');
+    
+    // Lấy order_id từ localStorage (được set bởi checkout page)
+    const savedOrderId = typeof window !== 'undefined' ? localStorage.getItem('current_order_id') : null;
+    const orderId = order_id || savedOrderId || '';
 
-      try {
-        console.log('[PaymentPage] Creating checkout session for order:', orderId);
+    console.log('[PaymentPage] URL params:', { order_id, amount, email });
+    console.log('[PaymentPage] Saved order_id from localStorage:', savedOrderId);
 
-        // Fetch order details
-        const orderResponse = await fetch(`/api/orders/${orderId}`);
-        if (!orderResponse.ok) {
-          throw new Error('Không thể lấy thông tin đơn hàng');
-        }
+    if (orderId && amount && email) {
+      setPaymentData({
+        orderId,
+        amount: parseFloat(amount),
+        email,
+      });
+      setIsModalOpen(true);
+    } else {
+      console.error('[PaymentPage] Missing required params:', { orderId, amount, email });
+      showError('Thông tin thanh toán không hoàn chỉnh');
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    }
+    setIsLoading(false);
+  }, [searchParams, showError]);
 
-        const orderData = await orderResponse.json();
-        console.log('[PaymentPage] Order data:', orderData);
+  const handlePaymentSuccess = (paymentIntentId: string) => {
+    // Thanh toán thành công sẽ được xử lý bởi /payment/success page
+    // Callback này được gọi nếu Stripe không redirect (redirect: 'if_required')
+    console.log('[PaymentPage] Payment success callback:', paymentIntentId);
+    showSuccess('Thanh toán thành công!');
+    setIsModalOpen(false);
+    
+    // Gửi message về tab gốc
+    if (window.opener) {
+      window.opener.postMessage(
+        { type: 'payment-success', paymentId: paymentIntentId, orderId: paymentData.orderId },
+        window.location.origin
+      );
+    }
+    
+    // Đóng tab
+    setTimeout(() => {
+      window.close();
+    }, 1500);
+  };
 
-        // Normalize order data
-        const order = orderData.data || orderData;
-        const totalAmount = order.total_price || order.TotalPrice || 0;
-        const email = authUser?.email || '';
+  const handlePaymentClose = () => {
+    console.log('[PaymentPage] User cancelled payment');
+    setIsModalOpen(false);
+    // Close this tab when user cancels
+    setTimeout(() => {
+      window.close();
+    }, 500);
+  };
 
-        // Create checkout session
-        const sessionResponse = await fetch('/api/payment/create-checkout-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId,
-            amount: totalAmount,
-            email,
-            items: order.items || [],
-          }),
-        });
-
-        if (!sessionResponse.ok) {
-          const error = await sessionResponse.json();
-          throw new Error(error.error || 'Không thể tạo session thanh toán');
-        }
-
-        const sessionData = await sessionResponse.json();
-        console.log('[PaymentPage] Session created:', sessionData);
-
-        if (sessionData.url) {
-          setCheckoutUrl(sessionData.url);
-          // Auto redirect to Stripe
-          window.location.href = sessionData.url;
-        } else {
-          throw new Error('Không nhận được URL thanh toán');
-        }
-      } catch (error) {
-        console.error('[PaymentPage] Error:', error);
-        showError((error as any)?.message || 'Có lỗi xảy ra');
-        setLoading(false);
-      }
-    };
-
-    createCheckoutSession();
-  }, [orderId, authUser?.email, router, showError]);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading payment...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="flex justify-center mb-4">
-          <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin" />
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Đang chuyển hướng...
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Vui lòng chờ, chúng tôi đang chuẩn bị trang thanh toán
-        </p>
-        
-        {checkoutUrl && (
-          <div className="mt-8">
-            <a
-              href={checkoutUrl}
-              className="inline-block bg-blue-600 dark:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 dark:hover:bg-blue-800 transition"
-            >
-              Chuyển đến trang thanh toán
-            </a>
+    <StripeProvider>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <CreditCard className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment</h1>
+            <p className="text-gray-600 mb-6">
+              {paymentData.amount > 0
+                ? `Complete your payment of $${(paymentData.amount / 100).toFixed(2)}`
+                : 'Processing your payment...'}
+            </p>
           </div>
-        )}
+        </div>
+
+        <StripePaymentModal
+          isOpen={isModalOpen}
+          orderId={paymentData.orderId}
+          amount={paymentData.amount}
+          email={paymentData.email}
+          onSuccess={handlePaymentSuccess}
+          onClose={handlePaymentClose}
+        />
       </div>
-    </div>
+    </StripeProvider>
   );
 }

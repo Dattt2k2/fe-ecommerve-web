@@ -402,7 +402,7 @@ export default function CheckoutPage() {
    - `/api/orders/direct` → `/order/direct`
    - `/api/orders/user` → `/order/user`
    - `/api/orders` → `/admin/orders`
-   - `/api/orders/cancel/[orderId]` → `/user/order/cancel/:order_id`
+   - `/api/orders/cancel/[orderId]` → `/order/cancel/:order_id`
 5. **Quan trọng**: 
    - `/order/user` là endpoint để lấy orders của user hiện tại (đã authenticated)
    - `/admin/orders` là endpoint để admin lấy tất cả orders trong hệ thống

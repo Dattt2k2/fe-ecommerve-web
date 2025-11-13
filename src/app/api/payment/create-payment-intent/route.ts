@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       amount: Math.round(amount * 100), // Convert to cents
       currency: 'vnd',
       metadata: {
-        orderId: orderId,
+        order_id: orderId,
         email: email || '',
       },
     });

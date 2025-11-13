@@ -17,7 +17,7 @@ export const API_ENDPOINTS = {
     LOGIN: '/auth/users/login',
     REGISTER: '/auth/users/register',
     LOGOUT: '/auth/users/logout',
-    REFRESH: '/auth/users/refresh',
+    REFRESH: '/auth/refresh-token',
     // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /users/:id)
   },  PRODUCTS: {
     LIST: USE_INTERNAL_API ? '/products' : '/products',
@@ -36,7 +36,7 @@ export const API_ENDPOINTS = {
     USER_ORDERS: '/api/orders/user', // Always use Next.js proxy route for client-side calls
     ORDER_FROM_CART: USE_INTERNAL_API ? '/api/orders/cart' : '/order/cart',
     ORDER_DIRECT: '/api/orders/direct', // Always use Next.js proxy route for client-side calls
-    CANCEL_ORDER: (orderId: string) => USE_INTERNAL_API ? `/api/orders/cancel/${orderId}` : `/user/order/cancel/${orderId}`,
+    CANCEL_ORDER: (orderId: string) => `/api/orders/cancel/${orderId}`, // Always use Next.js proxy route for client-side calls
   },
   USERS: {
     LIST: USE_INTERNAL_API ? '/me' : '/me',
@@ -56,8 +56,9 @@ export const API_ENDPOINTS = {
     CUSTOMERS: USE_INTERNAL_API ? '/admin/customers' : '/admin/customers',
   },
   UPLOAD: {
-    PRESIGNED_URL: USE_INTERNAL_API ? '/upload/presigned-url' : '/user/upload/presigned-url',
-    UPLOAD_FILE: USE_INTERNAL_API ? '/upload/file' : '/user/upload/file',
+    // Use Next.js API proxy routes so client code can call /api/upload/presigned-url
+    PRESIGNED_URL: '/api/upload/presigned-url',
+    UPLOAD_FILE: '/api/upload/file',
   },
   REVIEWS: {
     LIST: (productId: string) => `/user/product/review/${productId}`,
@@ -142,19 +143,14 @@ class ApiClient {
         }
 
         console.log('[ApiClient] Refresh token exists, attempting refresh...');
-        // Build refresh URL (bypass request wrapper to avoid recursion)
-        const buildUrl = (base: string, ep: string) => {
-          if (!base) return ep;
-          const b = base.endsWith('/') ? base.slice(0, -1) : base;
-          const e = ep.startsWith('/') ? ep : `/${ep}`;
-          return `${b}${e}`;
-        };
-
-        const refreshUrl = USE_INTERNAL_API ? API_ENDPOINTS.AUTH.REFRESH : buildUrl(this.baseURL, API_ENDPOINTS.AUTH.REFRESH);
-        const res = await safeFetch(refreshUrl, {
+        // Call refresh token through Next.js proxy (same as login)
+        const refreshUrl = '/auth/refresh-token';
+        const res = await fetch(refreshUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
+          body: JSON.stringify({
+            'refresh_token': refreshToken
+          }),
         });
         
         console.log('[ApiClient] Refresh API response status:', res.status);
@@ -173,13 +169,17 @@ class ApiClient {
         }
         
         const d = await res.json().catch(() => ({}));
+        console.log('[ApiClient] Refresh API response data:', d);
         const newAccess = d?.access_token || d?.token || d?.auth_token;
         const newRefresh = d?.refresh_token;
+        console.log('[ApiClient] Extracted tokens:', { newAccess: newAccess ? 'present' : 'missing', newRefresh: newRefresh ? 'present' : 'missing' });
         if (newAccess) {
           try { localStorage.setItem('auth_token', newAccess); } catch (e) {}
           if (newRefresh) try { localStorage.setItem('refresh_token', newRefresh); } catch (e) {}
+          console.log('[ApiClient] Tokens saved to localStorage');
           return true;
         }
+        console.log('[ApiClient] No access token in response');
         return false;
       } catch (e) {
         return false;
@@ -194,22 +194,18 @@ class ApiClient {
       
       // Handle authentication errors (401)
       if (response.status === 401) {
-        // Don't trigger handleAuthError on login/register endpoints, review GET requests, cart operations, or user profile fetch
+        // Don't trigger handleAuthError on login/register endpoints or review GET requests
         const isLoginEndpoint = url.includes('/login') || url.includes('/register');
         const isReviewGetRequest = url.includes('/review/') && config.method === 'GET';
-        const isCartOperation = url.includes('/cart');
-        const isUserProfileFetch = url.includes('/users') && config.method === 'GET';
         
         console.log('[ApiClient] 401 Error:', {
           url,
           method: config.method,
           isLoginEndpoint,
-          isReviewGetRequest,
-          isCartOperation,
-          isUserProfileFetch
+          isReviewGetRequest
         });
         
-        if (!isLoginEndpoint && !isReviewGetRequest && !isCartOperation && !isUserProfileFetch) {
+        if (!isLoginEndpoint && !isReviewGetRequest) {
           console.log('[ApiClient] Attempting token refresh...');
           // Attempt refresh once for authenticated endpoints (only on client side)
           const refreshed = typeof window !== 'undefined' ? await tryRefresh() : false;

@@ -10,7 +10,7 @@ export default function OrderPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
-  const { user: authUser } = useAuth();
+  const { user: authUser, loading: authLoading } = useAuth();
   const hasInitialized = useRef(false);
 
   const productId = searchParams.get('productId');
@@ -25,109 +25,124 @@ export default function OrderPage() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [shippingMethod, setShippingMethod] = useState('Nhanh');
   const [loading, setLoading] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
-    if (hasInitialized.current) {
-      console.log('[OrderPage] Already initialized, skipping effect');
-      return;
+  // Đợi cho auth context sẵn sàng
+  if (authLoading) {
+    console.log('[OrderPage] Auth đang loading, chưa fetch');
+    return;
+  }
+
+  if (!authUser) {
+    console.log('[OrderPage] Chưa có authUser, bỏ qua fetch');
+    return;
+  }
+
+  console.log('[OrderPage] Bắt đầu fetch dữ liệu');
+
+  let isMounted = true;
+
+  const fetchProduct = async () => {
+    try {
+      console.log('[OrderPage] Fetching product:', productId);
+      const response = await fetch(`/api/products/${productId}`);
+      if (!response.ok) throw new Error('Failed to fetch product');
+      const data = await response.json();
+      if (isMounted) setProduct(data);
+    } catch (error) {
+      if (isMounted) {
+        console.error('Error fetching product:', error);
+        showError('Không thể tải thông tin sản phẩm');
+      }
     }
-    console.log('[OrderPage] Starting effect...');
-    hasInitialized.current = true;
+  };
 
-    let isMounted = true;
+  const fetchUserInfo = async () => {
+    try {
+      console.log('[OrderPage] Fetching user info');
+      const userResponse = await apiClient.get(API_ENDPOINTS.USERS.DETAIL());
+      if (isMounted && userResponse) {
+        const firstName = (userResponse as any)?.first_name || '';
+        const lastName = (userResponse as any)?.last_name || '';
+        const phone = (userResponse as any)?.phone || '';
+        const combinedName = `${firstName} ${lastName}`.trim();
 
-    const fetchProduct = async () => {
-      try {
-        console.log('[OrderPage] Fetching product:', productId);
-        const response = await fetch(`/api/products/${productId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch product');
-        }
-        const data = await response.json();
-        if (isMounted) setProduct(data);
-      } catch (error) {
-        if (isMounted) {
-          console.error('Error fetching product:', error);
-          showError('Không thể tải thông tin sản phẩm');
+        const userInfoData = {
+          name: combinedName || (userResponse as any)?.name || (userResponse as any)?.email || 'Người dùng',
+          phone: phone || '',
+        };
+        setUserInfo(userInfoData);
+      }
+    } catch (error) {
+      if (isMounted) {
+        console.error('Error fetching user info:', error);
+        if (authUser) {
+          const fallbackInfo = {
+            name: authUser.name || (authUser as any)?.email || 'Người dùng',
+            phone: (authUser as any)?.phone || '',
+          };
+          setUserInfo(fallbackInfo);
         }
       }
-    };
-
-    const fetchUserInfo = async () => {
-      try {
-        console.log('[OrderPage] Fetching user info from /me API');
-        const userResponse = await apiClient.get(API_ENDPOINTS.USERS.DETAIL());
-        console.log('[OrderPage] User info from API:', userResponse);
-        
-        if (isMounted && userResponse) {
-          const firstName = (userResponse as any)?.first_name || '';
-          const lastName = (userResponse as any)?.last_name || '';
-          const phone = (userResponse as any)?.phone || '';
-          const combinedName = `${firstName} ${lastName}`.trim();
-          
-          console.log('[OrderPage] Extracted data:', { firstName, lastName, phone, combinedName });
-          
-          setUserInfo({
-            name: combinedName || (userResponse as any)?.name || (userResponse as any)?.email || 'Người dùng',
-            phone: phone || '',
-          });
-          console.log('[OrderPage] User info set:', { name: combinedName, phone });
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error('Error fetching user info:', error);
-          // Fallback to authUser if API fails
-          if (authUser) {
-            setUserInfo({
-              name: authUser.name || (authUser as any)?.email || 'Người dùng',
-              phone: (authUser as any)?.phone || '',
-            });
-          }
-        }
-      }
-    };
-
-    const fetchUserAddress = async () => {
-      try {
-        console.log('[OrderPage] Fetching user address');
-        const addressData = await apiClient.get(API_ENDPOINTS.ADDRESS.LIST);
-        console.log('Address data received:', addressData);
-        let addressList: any[] = [];
-        if (Array.isArray(addressData)) {
-          addressList = addressData;
-        } else if (addressData && typeof addressData === 'object') {
-          addressList = (addressData as any).addresses || (addressData as any).data || [];
-        }
-        console.log('Processed address list:', addressList);
-        if (isMounted) {
-          if (addressList.length > 0) {
-            const formattedAddresses = addressList.map((addr: any) => ({
-              id: addr.id || addr._id || Math.random().toString(),
-              address: addr.street || addr.address || addr.full_address || 'Địa chỉ không xác định',
-            }));
-            setAddresses(formattedAddresses);
-            setSelectedAddressId(formattedAddresses[0].id);
-            console.log('Addresses set:', formattedAddresses);
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error('Error fetching user address:', error);
-        }
-      }
-    };
-
-    if (productId) {
-      fetchProduct();
     }
-    fetchUserInfo();
-    fetchUserAddress();
+  };
 
-    return () => {
-      console.log('[OrderPage] Cleanup - setting isMounted to false');
-      isMounted = false;
-    };
-  }, []);
+  const fetchUserAddress = async () => {
+    try {
+      console.log('[OrderPage] Fetching user address from:', API_ENDPOINTS.ADDRESS.LIST);
+      const addressData = await apiClient.get(API_ENDPOINTS.ADDRESS.LIST);
+      let addressList: any[] = [];
+
+      if (Array.isArray(addressData)) {
+        addressList = addressData;
+      } else if (addressData && typeof addressData === 'object') {
+        addressList = (addressData as any).addresses || (addressData as any).data || (addressData as any).items || [];
+      }
+
+      if (isMounted) {
+        if (addressList && addressList.length > 0) {
+          const formattedAddresses = addressList.map((addr: any) => ({
+            id: addr.id || addr._id || Math.random().toString(),
+            address: addr.street || addr.address || addr.full_address || 'Địa chỉ không xác định',
+          }));
+          setAddresses(formattedAddresses);
+          setSelectedAddressId(formattedAddresses[0].id);
+        } else {
+          setAddresses([]);
+        }
+      }
+    } catch (error) {
+      if (isMounted) {
+        console.error('[OrderPage] Error fetching user address:', error);
+        setAddresses([]);
+      }
+    }
+  };
+
+  const executeAllFetches = async () => {
+    const tasks: Promise<void>[] = [];
+
+    if (productId) tasks.push(fetchProduct());
+    tasks.push(fetchUserInfo());
+    tasks.push(fetchUserAddress());
+
+    try {
+      await Promise.all(tasks);
+      console.log('[OrderPage] All fetches completed');
+    } catch (err) {
+      console.error('[OrderPage] Error in one of fetches:', err);
+    }
+  };
+
+  executeAllFetches();
+
+  return () => {
+    isMounted = false;
+    console.log('[OrderPage] Cleanup - unmounted');
+  };
+}, [authUser, authLoading, productId]);
+
 
   const handleOrder = async () => {
     let shippingAddress = '';
@@ -174,20 +189,68 @@ export default function OrderPage() {
       });
 
       const typedResponse = response as any;
-      const orderId = typedResponse.orderId || typedResponse.id || typedResponse.order_id;
+      const orderId = typedResponse.order_id || 'unknown';
       console.log('[handleOrder] Order response full:', typedResponse);
       console.log('[handleOrder] Order response keys:', Object.keys(typedResponse));
       console.log('[handleOrder] Extracted orderId:', orderId);
       
-      // If payment method is Stripe, redirect to payment page
+      // If payment method is Stripe, create checkout session
       if (paymentMethod === 'stripe') {
-        showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
-        // Redirect to payment page with order ID
-        router.push(`/payment?order_id=${orderId}`);
+        try {
+          showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
+          
+          const amountToCharge = totalPrice + shippingFee;
+          console.log('[handleOrder] Stripe payment - amount:', {
+            totalPrice,
+            shippingFee,
+            amountToCharge,
+            productPrice: product?.price,
+            quantity: Number(quantity),
+          });
+          
+          // Create Stripe checkout session
+          const sessionResponse = await fetch('/api/payment/create-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId,
+              amount: amountToCharge,
+              email: authUser?.email || '',
+              items: [
+                {
+                  product_id: productId,
+                  name: product?.name || 'Product',
+                  price: product?.price || 0,
+                  quantity: Number(quantity),
+                }
+              ],
+            }),
+          });
+
+          if (!sessionResponse.ok) {
+            const error = await sessionResponse.json();
+            throw new Error(error.error || 'Failed to create checkout session');
+          }
+
+          const sessionData = await sessionResponse.json();
+          console.log('Checkout session created:', sessionData);
+
+          // Redirect to Stripe Checkout
+          if (sessionData.url) {
+            window.location.href = sessionData.url;
+          } else {
+            showError('Không thể tạo session thanh toán');
+          }
+        } catch (stripeError) {
+          console.error('Error creating checkout session:', stripeError);
+          showError((stripeError as any)?.message || 'Có lỗi khi chuyển đến trang thanh toán');
+        }
       } else {
-        // For COD, redirect immediately
+        // For COD, redirect to my-orders page
         showSuccess('Đơn hàng đã được tạo thành công!');
-        router.push(`/order/${orderId}`);
+        router.push('/my-orders');
       }
     } catch (error) {
       console.error('Error creating order:', error);
@@ -201,6 +264,16 @@ export default function OrderPage() {
   const shippingFee = 16500;
   const totalPrice = product ? product.price * parsedQuantity : 0;
   const totalPayment = totalPrice + shippingFee;
+
+  console.log('[OrderPage] Rendering with state:', { 
+    authLoading, 
+    dataLoaded, 
+    addressCount: addresses.length, 
+    addresses, 
+    selectedAddressId, 
+    userInfo,
+    hasInitialized: hasInitialized.current 
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
