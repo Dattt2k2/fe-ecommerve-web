@@ -479,6 +479,8 @@ export default function InventoryManagement() {
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+            type="submit"
+            style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 100 }} // Fixed position to ensure visibility.
           >
             <Plus className="w-4 h-4" />
             Thêm sản phẩm
@@ -693,11 +695,11 @@ export default function InventoryManagement() {
           {/* Modal */}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <div 
-              className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl lg:max-w-4xl max-h-[95vh] overflow-hidden"
+              className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl lg:max-w-4xl max-h-[95vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-gray-700">
                 <div>
                   <h3 className="text-xl font-bold text-white">
                     {editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
@@ -721,8 +723,8 @@ export default function InventoryManagement() {
                 </button>
               </div>
               
-              {/* Content */}
-              <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6">
               
               <form id="product-form" onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 {/* Product Name */}
@@ -759,12 +761,13 @@ export default function InventoryManagement() {
                       Giá (VND) *
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       required
-                      min="0"
-                      step="1000"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: Number(e.target.value) }))}
+                      value={formData.price.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\./g, '');
+                        setFormData(prev => ({ ...prev, price: value ? Number(value) : 0 }));
+                      }}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
@@ -774,11 +777,13 @@ export default function InventoryManagement() {
                       Số lượng *
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       required
-                      min="1"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantity: Number(e.target.value) }))}
+                      value={formData.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\./g, '');
+                        setFormData(prev => ({ ...prev, quantity: value ? Number(value) : 0 }));
+                      }}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
@@ -801,34 +806,21 @@ export default function InventoryManagement() {
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Mã SKU
+                      Trạng thái
                     </label>
-                    <input
-                      type="text"
-                      value={formData.sku}
-                      onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'onsale' | 'offsale' | 'unavailable' }))}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
+                    >
+                      <option value="onsale">Đang bán</option>
+                      <option value="offsale">Ngừng bán</option>
+                      <option value="unavailable">Không khả dụng</option>
+                    </select>
                   </div>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Trạng thái
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  >
-                    <option value="onsale">Đang bán</option>
-                    <option value="offsale">Không bán</option>
-                    <option value="unavailable">Không có sẵn</option>
-                  </select>
                 </div>
 
                 {/* Images */}

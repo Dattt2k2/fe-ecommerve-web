@@ -8,15 +8,14 @@ export const metadata: Metadata = {
 };
 
 interface EditProductPageProps {
-  params: {
-    id: string;
-  };
+  params?: Promise<{ id: string }>;
 }
 
-export default function EditProductPage({ params }: EditProductPageProps) {
+export default async function EditProductPage({ params }: EditProductPageProps) {
   // In a real app, you would fetch the product data here
   // For now, we'll use mock data
-  const productId = params.id;
+  const resolvedParams = await params;
+  const productId = resolvedParams?.id;
   
   if (!productId) {
     notFound();

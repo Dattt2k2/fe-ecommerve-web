@@ -18,7 +18,7 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [reviews, setReviews] = useState<{ rating: number; title: string; body_review: string; created_at: string }[]>([]);
-  const [newReview, setNewReview] = useState({ rating: 0, comment: '' });
+  const [newReview, setNewReview] = useState({ rating: 0, body_review: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 3;
 
@@ -146,10 +146,15 @@ export default function ProductDetailPage() {
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      const localToken = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('access_token')) : null;
+      if (localToken) headers['Authorization'] = localToken.startsWith('Bearer ') ? localToken : `Bearer ${localToken}`;
+
       const response = await fetch(`/api/proxy/products/create-reviews/${params.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(newReview),
+        credentials: 'include', // ensure cookies are sent to proxy
       });
 
       const result = await response.json();
@@ -164,9 +169,11 @@ export default function ProductDetailPage() {
       }
 
       setReviews((prev) => [...prev, result]);
-      setNewReview({ rating: 0, comment: '' });
+      setNewReview({ rating: 0, body_review: '' });
+      showSuccess('Đánh giá đã được gửi thành công!');
     } catch (error) {
       console.error('Error submitting review:', error);
+      showError('Có lỗi xảy ra khi gửi đánh giá.');
     }
   };
 
@@ -479,8 +486,8 @@ export default function ProductDetailPage() {
                 ))}
               </div>
               <textarea
-                value={newReview.comment}
-                onChange={(e) => setNewReview((prev) => ({ ...prev, comment: e.target.value }))}
+                value={newReview.body_review}
+                onChange={(e) => setNewReview((prev) => ({ ...prev, body_review: e.target.value }))}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4"
                 placeholder="Viết đánh giá của bạn..."
                 rows={4}

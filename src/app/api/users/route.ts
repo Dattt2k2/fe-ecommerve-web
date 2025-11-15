@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { User } from '@/types';
 
 // Mock users database - shared with auth routes
-let users: User[] = [
+const users: User[] = [
   {
     id: '1',
     email: 'admin@shopvn.com',

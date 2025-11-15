@@ -16,7 +16,7 @@ interface ReviewData {
   user_id: string;
   user_name?: string;
   rating: number;
-  comment: string;
+  body_review: string;
   created_at: string;
 }
 
@@ -32,7 +32,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [newReview, setNewReview] = useState({
     rating: 5,
     title: '',
-    comment: '',
+    body_review: '',
   });
 
   // Check authentication status
@@ -88,7 +88,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       return;
     }
 
-    if (!newReview.comment.trim()) {
+    if (!newReview.body_review.trim()) {
       setSubmitError('Vui lòng nhập nhận xét của bạn');
       return;
     }
@@ -100,7 +100,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       const data = await reviewsAPI.createReview(productId, {
         rating: newReview.rating,
         title: newReview.title || 'Đánh giá sản phẩm',
-        body_review: newReview.comment,
+        body_review: newReview.body_review,
       });
 
       // Success - add new review to list
@@ -110,12 +110,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         user_id: data.user_id || '',
         user_name: data.user_name || 'Bạn',
         rating: newReview.rating,
-        comment: newReview.comment,
+        body_review: newReview.body_review,
         created_at: new Date().toISOString(),
       };
       
       setReviews([newReviewData, ...reviews]);
-      setNewReview({ rating: 5, title: '', comment: '' });
+      setNewReview({ rating: 5, title: '', body_review: '' });
       setActiveTab('reviews');
       setSubmitError(null);
     } catch (err) {
@@ -294,7 +294,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                       </div>
                       
                       <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {review.comment}
+                        {review.body_review}
                       </p>
                       
                       <div className="flex items-center gap-4 mt-3">
@@ -396,8 +396,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 Nhận xét
               </label>
               <textarea
-                value={newReview.comment}
-                onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                value={newReview.body_review}
+                onChange={(e) => setNewReview({ ...newReview, body_review: e.target.value })}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."

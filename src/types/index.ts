@@ -78,7 +78,7 @@ export interface Review {
   userId: string;
   userName: string;
   rating: number;
-  comment: string;
+  body_review: string;
   createdAt: Date;
 }
 

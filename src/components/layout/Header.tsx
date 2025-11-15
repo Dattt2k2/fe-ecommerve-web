@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { ShoppingCart, User as UserIcon, Search, Package, LogOut, Settings } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import SearchDropdown from '@/components/SearchDropdown';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -91,16 +92,7 @@ export default function Header() {
               {/* Search Bar */}
               {showSearch && (
                 <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-3xl">
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      placeholder="Tìm sản phẩm, thương hiệu..." 
-                      className="w-full bg-white rounded-full px-4 sm:px-6 py-2 sm:py-3 pr-10 sm:pr-12 text-sm sm:text-base text-gray-700 placeholder-gray-500 border-none outline-none focus:ring-2 focus:ring-orange-200 transition-all shadow-sm"
-                    />
-                    <button className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 p-1 sm:p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-all">
-                      <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
-                  </div>
+                  <SearchDropdown />
                 </div>
               )}
             </div>

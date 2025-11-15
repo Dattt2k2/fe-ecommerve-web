@@ -10,13 +10,20 @@ export default function CheckoutSuccessPage() {
   const orderNumber = `VN${Date.now().toString().slice(-6)}`;
 
   useEffect(() => {
-    // Redirect to my-orders after 3 seconds
-    const timer = setTimeout(() => {
-      console.log('[CheckoutSuccess] Redirecting to /my-orders');
-      router.push('/my-orders');
-    }, 3000);
+    // If this page is opened in a popup/opener flow, notify opener and close the popup immediately.
+    try {
+      if (typeof window !== 'undefined' && window.opener) {
+        console.log('[CheckoutSuccess] Posting message to opener and closing window');
+        window.opener.postMessage({ type: 'checkout-success' }, window.location.origin);
+        window.close();
+        return;
+      }
+    } catch (err) {
+      console.warn('[CheckoutSuccess] Could not postMessage to opener:', err);
+    }
 
-    return () => clearTimeout(timer);
+    // Otherwise immediately navigate to my-orders
+    router.replace('/my-orders');
   }, [router]);
 
   return (

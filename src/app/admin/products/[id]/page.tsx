@@ -8,13 +8,12 @@ export const metadata: Metadata = {
 };
 
 interface ProductDetailPageProps {
-  params: {
-    id: string;
-  };
+  params?: Promise<{ id: string }>;
 }
 
-export default function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const productId = params.id;
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const resolvedParams = await params;
+  const productId = resolvedParams?.id;
   
   if (!productId) {
     notFound();

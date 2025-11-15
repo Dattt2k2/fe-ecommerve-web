@@ -10,16 +10,26 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     const paymentId = searchParams.get('payment_intent');
+    const orderId = searchParams.get('order_id');
 
-    console.log('[PaymentSuccess] Payment completed with ID:', paymentId);
+    console.log('[PaymentSuccess] Payment completed with ID:', paymentId, 'orderId:', orderId);
 
-    // Redirect trực tiếp tới /my-orders
-    const timer = setTimeout(() => {
-      console.log('[PaymentSuccess] Redirecting to /my-orders');
-      router.push('/my-orders');
-    }, 2000);
+    // If opened as a popup from the checkout/checkout page, send a message to the opener
+    // so the opener can update state and redirect; otherwise just navigate to /my-orders.
+    try {
+      if (typeof window !== 'undefined' && window.opener) {
+        console.log('[PaymentSuccess] Posting message to opener and closing window');
+        window.opener.postMessage({ type: 'payment-success', paymentId, orderId }, window.location.origin);
+        // Close this popup window immediately
+        window.close();
+        return; // stop further execution
+      }
+    } catch (err) {
+      console.warn('[PaymentSuccess] Could not postMessage to opener:', err);
+    }
 
-    return () => clearTimeout(timer);
+    // If there's no opener (single-tab flow or direct redirect), immediately replace to /my-orders
+    router.replace('/my-orders');
   }, [searchParams, router]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient, API_ENDPOINTS } from '@/lib/api';
@@ -38,9 +38,15 @@ export default function MyOrdersPage() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'cancel' | 'confirm-delivery';
+    orderId: string;
+    message: string;
+  } | null>(null);
 
   // fetchOrders extracted so other handlers/effects can trigger refresh
-  const fetchOrders = async (page: number = 1) => {
+  const fetchOrders = useCallback(async (page: number = 1) => {
     try {
       if (authLoading) {
         console.log('[MyOrders] fetchOrders: auth still loading, skipping');
@@ -92,70 +98,47 @@ export default function MyOrdersPage() {
       setOrders(normalizedOrders);
       console.log('[MyOrders] Normalized orders set:', normalizedOrders);
     } catch (error) {
-      console.error('[MyOrders] Error fetching orders:', error);
+      console.log('[MyOrders] Error fetching orders:', error);
       showError('Không thể tải danh sách đơn hàng');
     } finally {
       setLoading(false);
     }
-  };
+  }, [authLoading, showError]);
 
-  // Initial fetch + refresh on page focus + polling for updates
+  // Initial fetch + refresh on page focus
   useEffect(() => {
-    let mounted = true;
-
-    // initial load
-    if (!authLoading && mounted) fetchOrders(currentPage);
-
-    // on window focus, refresh orders (helps reflect seller-side changes)
-    const onFocus = () => {
-      console.log('[MyOrders] window focus - refreshing orders');
+    if (!authLoading) {
       fetchOrders(currentPage);
-    };
-    window.addEventListener('focus', onFocus);
-
-    // periodic polling while page is visible
-    const pollInterval = 30000; // 30s
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        console.log('[MyOrders] polling orders...');
-        fetchOrders(currentPage);
-      }
-    }, pollInterval);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener('focus', onFocus);
-      clearInterval(interval);
-    };
-  }, [authLoading, currentPage]);
+    }
+  }, [authLoading, fetchOrders, currentPage]);
 
   const getStatusBadgeColor = (status?: string, paymentStatus?: string) => {
     const normalizedStatus = status?.toLowerCase() || '';
     const normalizedPaymentStatus = paymentStatus?.toLowerCase() || '';
     
-    // If the order is cancelled, show cancelled badge regardless of payment status
-    if (normalizedStatus === 'cancelled') {
-      return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
-    }
-
-    // Xử lý trạng thái thanh toán (only when order itself is not cancelled)
-    if (normalizedPaymentStatus === 'pending' || normalizedPaymentStatus === 'pending_verification') {
-      return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
-    }
-
-    // Xử lý trạng thái chính của đơn hàng
+    // Ưu tiên Status chính của đơn hàng
     switch (normalizedStatus) {
-      case 'payment_held':
-        return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200';
-      case 'pending':
-        return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+      case 'cancelled':
+      case 'canceled':
+        return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+      case 'delivering':
+      case 'shipping':
+        return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200';
+      case 'delivered':
+      case 'completed':
+        return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
       case 'processing':
         return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
-      case 'completed':
-      case 'delivered':
+      case 'payment_held':
+        return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200';
+      case 'payment_release':
         return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
-      case 'cancelled':
-        return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+      case 'pending':
+        // Nếu pending và chưa thanh toán thì màu vàng
+        if (normalizedPaymentStatus === 'pending' || normalizedPaymentStatus === 'pending_verification') {
+          return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+        }
+        return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200';
       default:
         return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
     }
@@ -164,47 +147,32 @@ export default function MyOrdersPage() {
   const getStatusLabel = (status?: string, paymentStatus?: string, shippingStatus?: string) => {
     const normalizedStatus = status?.toLowerCase() || '';
     const normalizedPaymentStatus = paymentStatus?.toLowerCase() || '';
-    const normalizedShippingStatus = shippingStatus?.toLowerCase() || '';
 
-    // If the order itself is cancelled, show cancelled regardless of payment status
-    if (normalizedStatus === 'cancelled') {
-      return 'Đã hủy';
-    }
-
-    // Ưu tiên hiển thị trạng thái thanh toán nếu chưa hoàn tất
-    if (normalizedPaymentStatus === 'pending' || normalizedPaymentStatus === 'pending_verification') {
-      return 'Chờ thanh toán';
-    }
-
-    // Nếu thanh toán đã hoàn tất, kiểm tra trạng thái giao hàng
-    if (normalizedPaymentStatus === 'checkout_completed') {
-      if (normalizedShippingStatus === 'pending') {
-        return 'Chờ giao hàng';
-      }
-      if (normalizedShippingStatus === 'shipped') {
-        return 'Đang giao hàng';
-      }
-      if (normalizedShippingStatus === 'delivered') {
-        return 'Đã giao hàng';
-      }
-    }
-    
-    // Fallback về status gốc
+    // Ưu tiên Status chính của đơn hàng
     switch (normalizedStatus) {
-      case 'payment_held':
-        return 'Thanh toán đã được giữ';
-      case 'pending':
-        return 'Chờ xác nhận';
+      case 'cancelled':
+      case 'canceled':
+        return 'Đã hủy';
+      case 'shipped':
+        return 'Đã nhận hàng';
+      case 'delivering':
+      case 'shipping':
+        return 'Đang giao';
+      case 'delivered':
+      case 'completed':
+        return 'Đã giao';
       case 'processing':
         return 'Đang xử lý';
-      case 'shipped':
-        return 'Đã giao';
-      case 'delivered':
-        return 'Đã nhận';
-      case 'completed':
-        return 'Hoàn thành';
-      case 'cancelled':
-        return 'Đã hủy';
+      case 'payment_held':
+        return 'Chờ xác nhận';
+      case 'payment_release':
+        return 'Đã giải ngân';
+      case 'pending':
+        // Nếu pending và chưa thanh toán thì hiển thị "Chờ thanh toán"
+        if (normalizedPaymentStatus === 'pending' || normalizedPaymentStatus === 'pending_verification') {
+          return 'Chờ thanh toán';
+        }
+        return 'Chờ xác nhận';
       default:
         return 'Đang xử lý';
     }
@@ -219,6 +187,22 @@ export default function MyOrdersPage() {
       default:
         return method || 'Chưa xác định';
     }
+  };
+
+  const isPaymentCompleted = (paymentStatus?: string) => {
+    const s = (paymentStatus || '').toLowerCase();
+    // Treat common forms of completed/held/approved payments as "paid" for the UI
+    return [
+      'checkout_completed',
+      'completed',
+      'paid',
+      'payment_held',
+      'payment_release',
+      'paymentheld',
+      'payment-held',
+      'held',
+      'authorized',
+    ].includes(s);
   };
 
   return (
@@ -236,7 +220,7 @@ export default function MyOrdersPage() {
             <p className="text-gray-600 dark:text-gray-400">Theo dõi và quản lý đơn hàng của bạn</p>
           </div>
           <Link 
-            href="/products"
+            href="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,7 +254,7 @@ export default function MyOrdersPage() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Chưa có đơn hàng nào</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-8">Hãy khám phá và đặt hàng ngay để trải nghiệm dịch vụ của chúng tôi!</p>
               <Link 
-                href="/products"
+                href="/"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,18 +306,18 @@ export default function MyOrdersPage() {
                       <div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Thanh toán</p>
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                          order.payment_status === 'checkout_completed' 
+                          isPaymentCompleted(order.payment_status) 
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
                             : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                         }`}>
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            {order.payment_status === 'checkout_completed' ? (
+                            {isPaymentCompleted(order.payment_status) ? (
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             ) : (
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                             )}
                           </svg>
-                          {order.payment_status === 'checkout_completed' ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                          {isPaymentCompleted(order.payment_status) ? 'Đã thanh toán' : 'Chờ thanh toán'}
                         </span>
                       </div>
 
@@ -407,16 +391,16 @@ export default function MyOrdersPage() {
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Trạng thái thanh toán</p>
                           <p className="text-gray-900 dark:text-white">
-                            {order.payment_status === 'checkout_completed' ? 'Đã thanh toán' : 
-                             order.payment_status === 'PENDING' ? 'Chờ thanh toán' : 
-                             order.payment_status || 'N/A'}
+                            {isPaymentCompleted(order.payment_status) ? 'Đã thanh toán' : 
+                             (order.payment_status?.toUpperCase() === 'PENDING' ? 'Chờ thanh toán' : 
+                             order.payment_status || 'N/A')}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Trạng thái giao hàng</p>
                           <p className="text-gray-900 dark:text-white">
-                            {order.shipping_status === 'pending' ? 'Chờ giao hàng' : 
-                             order.shipping_status === 'shipped' ? 'Đang giao hàng' : 
+                            {order.status === 'SHIPPED' ? 'Đã nhận hàng' : 
+                             order.shipping_status === 'pending' ? 'Chờ giao hàng' : 
                              order.shipping_status === 'delivered' ? 'Đã giao hàng' : 
                              order.shipping_status || 'N/A'}
                           </p>
@@ -426,21 +410,22 @@ export default function MyOrdersPage() {
 
                     {/* Order Footer - Action Buttons */}
                     <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex flex-wrap gap-2">
-                      {/* Hủy đơn hàng - nếu chưa được xác nhận */}
-                      {(order.status?.toUpperCase() === 'PENDING' || order.status?.toUpperCase() === 'PROCESSING') && (
+                      {/* Hủy đơn hàng - nếu chưa được giao */}
+                      {(
+                        (order.status?.toUpperCase() === 'PENDING' || 
+                        order.status?.toUpperCase() === 'PAYMENT_HELD' || 
+                        order.status?.toUpperCase() === 'PROCESSING') &&
+                        order.payment_status?.toUpperCase() !== 'PAYMENT_RELEASE' &&
+                        order.payment_status?.toUpperCase() !== 'PAYMENT_RELEASED'
+                      ) && (
                         <button
-                          onClick={async () => {
-                            if (confirm('Bạn chắc chắn muốn hủy đơn hàng này?')) {
-                              try {
-                                await apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(order.id), {});
-                                showSuccess('Đơn hàng đã được hủy');
-                                // Refresh orders list
-                                window.location.reload();
-                              } catch (error) {
-                                console.error('Error cancelling order:', error);
-                                showError('Không thể hủy đơn hàng');
-                              }
-                            }
+                          onClick={() => {
+                            setConfirmAction({
+                              type: 'cancel',
+                              orderId: order.id,
+                              message: 'Bạn chắc chắn muốn hủy đơn hàng này?'
+                            });
+                            setShowConfirmModal(true);
                           }}
                           className="bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800 text-white font-medium py-2 px-6 rounded-lg transition text-center"
                         >
@@ -448,24 +433,20 @@ export default function MyOrdersPage() {
                         </button>
                       )}
                       
-                      {/* Xác nhận đơn hàng - nếu đã ship */}
-                      {order.status?.toUpperCase() === 'SHIPPED' && (
+                      {/* Đã nhận hàng - nếu đã giao (DELIVERED) */}
+                      {order.status?.toUpperCase() === 'DELIVERED' && (
                         <button
-                          onClick={async () => {
-                            try {
-                              // Gọi API để xác nhận order
-                              await apiClient.post(`/api/orders/${order.id}/confirm`, {});
-                              showSuccess('Đơn hàng đã được xác nhận');
-                              // Refresh orders list
-                              window.location.reload();
-                            } catch (error) {
-                              console.error('Error confirming order:', error);
-                              showError('Không thể xác nhận đơn hàng');
-                            }
+                          onClick={() => {
+                            setConfirmAction({
+                              type: 'confirm-delivery',
+                              orderId: order.id,
+                              message: 'Xác nhận bạn đã nhận hàng?'
+                            });
+                            setShowConfirmModal(true);
                           }}
                           className="bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800 text-white font-medium py-2 px-6 rounded-lg transition text-center"
                         >
-                          Xác nhận đơn hàng
+                          Đã nhận hàng
                         </button>
                       )}
                     </div>
@@ -541,6 +522,63 @@ export default function MyOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4"
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                {confirmAction.type === 'cancel' ? 'Hủy đơn hàng' : 'Xác nhận nhận hàng'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {confirmAction.message}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  Không
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      if (confirmAction.type === 'cancel') {
+                        await apiClient.post(`/orders/cancel/${confirmAction.orderId}`, {});
+                        showSuccess('Đơn hàng đã được hủy');
+                      } else {
+                        await apiClient.post(`/orders/${confirmAction.orderId}/update-status`, {
+                          status: 'SHIPPED'
+                        });
+                        showSuccess('Đã xác nhận nhận hàng');
+                      }
+                      setShowConfirmModal(false);
+                      fetchOrders(currentPage);
+                    } catch (error) {
+                      console.error('Error:', error);
+                      showError(confirmAction.type === 'cancel' ? 'Không thể hủy đơn hàng' : 'Không thể xác nhận nhận hàng');
+                    }
+                  }}
+                  className={`px-6 py-2 rounded-lg text-white font-medium transition ${
+                    confirmAction.type === 'cancel'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  {confirmAction.type === 'cancel' ? 'Hủy đơn hàng' : 'Xác nhận'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

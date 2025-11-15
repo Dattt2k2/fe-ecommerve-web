@@ -114,6 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Also save token to cookies for middleware
       document.cookie = `auth-token=${response.access_token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
 
+      // Debug: log token fingerprint (not full token) for troubleshooting
+      try {
+        const t = response.access_token;
+        const fp = t ? `${t.slice(0, 8)}...` : 'none';
+        console.log('[AuthContext] set token fingerprint (localStorage/cookie):', fp, document.cookie.includes('auth-token=') ? 'cookie-set' : 'cookie-missing');
+      } catch (e) {}
+
       // Fetch full user profile from API in background (optional - if endpoint exists)
       // Only fetch if we don't already have detailed profile for this user
       if (!user || user.id !== response.uid || !user.name || user.name === response.email.split('@')[0]) {

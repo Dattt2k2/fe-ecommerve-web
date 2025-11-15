@@ -47,7 +47,7 @@ export default function CartPage() {
             Bạn chưa có sản phẩm nào trong giỏ hàng. Hãy khám phá các sản phẩm của chúng tôi!
           </p>
           <Link
-            href="/products"
+            href="/"
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -223,7 +223,7 @@ export default function CartPage() {
 
             {/* Checkout Button */}
             <Link
-              href="/checkout"
+              href="/order"
               className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-center block"
             >
               Tiến hành thanh toán
@@ -231,7 +231,7 @@ export default function CartPage() {
 
             {/* Continue Shopping */}
             <Link
-              href="/products"
+              href="/"
               className="w-full mt-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium text-center block"
             >
               Tiếp tục mua sắm

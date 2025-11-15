@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/utils';
@@ -27,6 +27,8 @@ interface Order {
   TotalPrice?: number;
   status?: string;
   Status?: string;
+  payment_status?: string;
+  PaymentStatus?: string;
   createdAt?: string;
   CreatedAt?: string;
   updatedAt?: string;
@@ -43,25 +45,16 @@ export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'>('all');
+  // Use uppercase constants for filter state to match normalized order.status
+  const [filter, setFilter] = useState<'all' | 'PENDING' | 'PROCESSING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED' | 'PAYMENT_RELEASE'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [totalRevenueState, setTotalRevenueState] = useState<number>(0);
 
-  useEffect(() => {
-    console.log('[SellerOrders] useEffect triggered - isAuthenticated:', isAuthenticated, 'user:', user?.id);
-    if (!isAuthenticated || !user) {
-      console.log('[SellerOrders] Not authenticated, redirecting to login');
-      router.push('/auth/login');
-      return;
-    }
-    console.log('[SellerOrders] Authenticated, calling fetchOrders');
-    fetchOrders();
-  }, [isAuthenticated, user?.id, currentPage, filter, selectedMonth, selectedYear]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -137,9 +130,14 @@ export default function SellerOrdersPage() {
         const raw = String(s).toUpperCase();
         // Normalize common variants
         if (raw === 'CANCELED' || raw === 'CANCELLED') return 'CANCELLED';
-        if (raw.includes('PENDING')) return 'PENDING';
+        // Map payment release variants to our dedicated PAYMENT_RELEASE stage
+        if (raw.includes('RELEASE') || raw === 'PAYMENT_RELEASED' || raw === 'RELEASED') return 'PAYMENT_RELEASE';
+        if (raw.includes('PENDING') || raw === 'PAYMENT_HELD') return 'PENDING';
         if (raw === 'PROCESSING') return 'PROCESSING';
-        if (raw === 'DELIVERING' || raw === 'SHIPPING') return 'DELIVERING';
+        // Map different "in transit" variants to our internal DELIVERING state
+        if (raw === 'DELIVERING' || raw === 'SHIPPING' || raw === 'IN_TRANSIT') return 'DELIVERING';
+        // API 'SHIPPED' flag should be considered 'DELIVERED' in our UI
+        if (raw === 'SHIPPED') return 'DELIVERED';
         if (raw === 'DELIVERED' || raw === 'COMPLETED') return 'DELIVERED';
         return raw;
       };
@@ -155,14 +153,26 @@ export default function SellerOrdersPage() {
         })),
         totalPrice: order.TotalPrice || order.total_price || order.totalPrice || 0,
         // Normalize status variants so UI shows correct badge (e.g. CANCELED -> CANCELLED)
-        status: normalizeStatus(order.Status || order.status || order.PaymentStatus || 'PENDING'),
-        createdAt: order.CreatedAt || order.created_at || order.createdAt,
-        updatedAt: order.UpdatedAt || order.updated_at || order.updatedAt,
+        // Also consider shipping status variants returned by backend
+        // Prefer PaymentStatus if available so that PAYMENT_RELEASE (or similar) overrides a generic order status like PENDING
+        status: normalizeStatus(order.PaymentStatus || order.payment_status || order.Status || order.status || order.ShippingStatus || order.shipping_status || 'PENDING'),
+        createdAt: order.CreatedAt || order.created_at || order.CreatedAt,
+        updatedAt: order.UpdatedAt || order.updated_at || order.UpdatedAt,
         shippingAddress: order.ShippingAddress || order.shipping_address || order.shippingAddress,
         customerEmail: order.CustomerEmail || order.customer_email || order.customerEmail,
       }));
       
       console.log('[SellerOrders] Normalized orders:', normalizedOrders);
+      // Extract total revenue if provided by backend (supports both snake_case and camelCase)
+      const revenueFromApi = (typeof data === 'object' && data !== null) ? (data.total_revenue ?? data.totalRevenue ?? data.revenue ?? null) : null;
+      if (typeof revenueFromApi === 'number') {
+        setTotalRevenueState(Number(revenueFromApi));
+      } else if (typeof revenueFromApi === 'string' && !isNaN(parseFloat(revenueFromApi))) {
+        setTotalRevenueState(parseFloat(revenueFromApi));
+      } else {
+        // Fallback: compute revenue from orders if API doesn't return a revenue field
+        setTotalRevenueState(normalizedOrders.reduce((sum: number, o: any) => sum + (o.totalPrice || 0), 0));
+      }
       console.log('[SellerOrders] Setting orders, length:', normalizedOrders.length);
       setOrders(normalizedOrders);
       console.log('[SellerOrders] After setOrders');
@@ -172,7 +182,18 @@ export default function SellerOrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filter, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    console.log('[SellerOrders] useEffect triggered - isAuthenticated:', isAuthenticated, 'user:', user?.id);
+    if (!isAuthenticated || !user) {
+      console.log('[SellerOrders] Not authenticated, redirecting to login');
+      router.push('/auth/login');
+      return;
+    }
+    console.log('[SellerOrders] Authenticated, calling fetchOrders');
+    fetchOrders();
+  }, [isAuthenticated, fetchOrders]);
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, any> = {
@@ -180,6 +201,7 @@ export default function SellerOrdersPage() {
       PROCESSING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Đang xử lý', icon: Check },
       DELIVERING: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Đang giao', icon: Package },
       DELIVERED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giao', icon: Check },
+      PAYMENT_RELEASE: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giải ngân', icon: Check },
       CANCELLED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Đã hủy', icon: X },
     };
 
@@ -213,9 +235,10 @@ export default function SellerOrdersPage() {
 
   useEffect(() => {
     console.log('[SellerOrders] expandedOrderId changed:', expandedOrderId);
-    console.log('[SellerOrders] expandedOrder:', expandedOrder);
-    console.log('[SellerOrders] orders list:', orders);
-  }, [expandedOrderId, expandedOrder, orders]);
+    if (expandedOrder) {
+      console.log('[SellerOrders] expandedOrder:', expandedOrder);
+    }
+  }, [expandedOrderId]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -253,7 +276,7 @@ export default function SellerOrdersPage() {
 
   console.log('[SellerOrders] Render - orders:', orders.length, 'filteredOrders:', filteredOrders.length, 'filter:', filter);
 
-  const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  const totalRevenue = totalRevenueState || filteredOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
 
   if (loading) {
     return (
@@ -320,7 +343,7 @@ export default function SellerOrdersPage() {
       <div className="space-y-4">
         {/* Status Filter */}
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'PENDING', 'PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED'] as const).map(status => (
+          {(['all', 'PENDING', 'PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'PAYMENT_RELEASE'] as const).map(status => (
             <button
               key={status}
               onClick={() => setFilter(status as any)}
@@ -336,6 +359,7 @@ export default function SellerOrdersPage() {
                 DELIVERING: 'Đang giao',
                 DELIVERED: 'Đã giao',
                 CANCELLED: 'Đã hủy',
+                PAYMENT_RELEASE: 'Đã giải ngân',
               }[status]}
             </button>
           ))}
@@ -458,7 +482,7 @@ export default function SellerOrdersPage() {
                             Đang giao
                           </button>
                         )}
-                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                           <button
                             onClick={() => cancelOrder(order.id || '')}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
@@ -479,15 +503,16 @@ export default function SellerOrdersPage() {
       {/* Modal Chi tiết đơn hàng */}
       {expandedOrderId && expandedOrder && (
         <div 
-          className="fixed top-0 left-0 right-0 bottom-0 bg-black/40 z-50 flex flex-col justify-start pt-[15vh] p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4"
           onClick={() => setExpandedOrderId(null)}
+          style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         >
           <div 
-            className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden mx-auto"
+            className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Content */}
-            <div className="p-8 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto bg-slate-800">
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-800">
               {/* Mã đơn hàng */}
               <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Mã đơn hàng</label>
@@ -507,6 +532,7 @@ export default function SellerOrdersPage() {
                         DELIVERING: 'Đang giao',
                         DELIVERED: 'Đã giao',
                         CANCELLED: 'Đã hủy',
+                        PAYMENT_RELEASE: 'Đã giải ngân',
                       };
                       return statusMap[expandedOrder.status || 'PENDING'] || 'Không xác định';
                     })()}
@@ -514,7 +540,7 @@ export default function SellerOrdersPage() {
                 </div>
                 
                 <div className="flex flex-wrap gap-3">
-                  {(expandedOrder.status === 'PENDING' || expandedOrder.status === 'PROCESSING') && (
+                  {expandedOrder.status === 'PROCESSING' && (
                     <button
                       onClick={() => handleStatusChange(expandedOrder.id || '', 'DELIVERING')}
                       className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
@@ -522,7 +548,15 @@ export default function SellerOrdersPage() {
                       ✓ Chuyển sang Đang giao
                     </button>
                   )}
-                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && (
+                  {expandedOrder.status === 'PENDING' && (
+                    <button
+                      onClick={() => handleStatusChange(expandedOrder.id || '', 'PROCESSING')}
+                      className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                    >
+                      ✓ Xác nhận đơn hàng
+                    </button>
+                  )}
+                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                     <button
                       onClick={() => { cancelOrder(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
                       className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
@@ -533,9 +567,9 @@ export default function SellerOrdersPage() {
                   {expandedOrder.status === 'DELIVERING' && (
                     <button
                       onClick={() => handleStatusChange(expandedOrder.id || '', 'DELIVERED')}
-                      className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+                      className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
                     >
-                      Đã giao
+                      Xác nhận giao hàng
                     </button>
                   )}
                 </div>
@@ -582,8 +616,8 @@ export default function SellerOrdersPage() {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-8 py-4 border-t border-slate-600 flex justify-end gap-3 bg-slate-700">
+            {/* Footer - Fixed */}
+            <div className="flex-shrink-0 px-8 py-4 border-t border-slate-600 flex justify-end gap-3 bg-slate-700">
               <button
                 onClick={() => {
                   setExpandedOrderId(null);

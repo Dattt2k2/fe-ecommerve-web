@@ -1,8 +1,7 @@
-import { useToast } from '@/context/ToastContext';
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_BASE_URL = 'http://api.example.com';
-const { showOwnProductError, showSuccess } = useToast();
+// Note: server routes cannot use React hooks like useToast. Instead, return status messages and let the frontend display toasts.
 
 export async function POST(
   request: NextRequest,
@@ -33,15 +32,11 @@ export async function POST(
 
     const data = await response.json().catch(() => ({ message: 'Failed to add to cart' }));
 
-    if (response.ok) {
-      showSuccess('Thêm vào giỏ hàng thành công');
-    }
+    // No server-side toast: return success message to client to handle
 
     if (!response.ok) {
       // Handle 500 - trying to add own product to cart
-      if (response.status === 500 && data.message?.includes('cannot add your own product')) {
-        showOwnProductError();
-      }
+      // If server returns 500 and indicates own-product, return as-is for frontend to display
       
       return NextResponse.json(data, { status: response.status });
     }

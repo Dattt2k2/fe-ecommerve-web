@@ -89,10 +89,15 @@ export async function POST(
       headers['Authorization'] = authHeader;
     }
     
+    const body_review = {
+      ...reviewData,
+      review: reviewData.review || 'No review content provided',
+    };
+
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify(reviewData),
+      body: JSON.stringify(body_review),
       cache: 'no-store'
     });
     

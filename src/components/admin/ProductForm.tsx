@@ -613,10 +613,12 @@ export default function ProductForm({ productId }: ProductFormProps) {
             className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Hủy
-          </button>          <button
+          </button>
+          <button
             type="submit"
             disabled={isLoading}
             className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
+            style={{ zIndex: 10 }} // Ensure button is not hidden by other elements.
           >
             {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Thêm sản phẩm')}
           </button>

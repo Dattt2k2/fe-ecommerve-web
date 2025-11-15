@@ -44,6 +44,15 @@ export async function POST(request: NextRequest) {
       // If we got a response from the backend, use it
       if (backendResponse.ok) {
         const responseData = await backendResponse.json();
+        try {
+          const t = responseData.access_token || responseData.token || responseData.auth_token;
+          if (t) {
+            const fingerprint = (typeof t === 'string' ? (t.slice(0, 8) + (t.length > 8 ? '...' : '')) : 'non-string');
+            console.log('[Auth Login] backend response contains token fingerprint:', fingerprint);
+          } else {
+            console.log('[Auth Login] backend response contains no token');
+          }
+        } catch (e) { /* ignore */ }
         
         const response = NextResponse.json({
           success: true,
