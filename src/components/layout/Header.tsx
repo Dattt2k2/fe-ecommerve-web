@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { ShoppingCart, User as UserIcon, Search, Package, LogOut, Settings } from 'lucide-react';
@@ -15,7 +15,12 @@ export default function Header() {
   const { itemCount } = useCart();
   const { user, logout, isAuthenticated } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const showSearch = !(pathname || '').startsWith('/seller');
+  const isAdminPage = (pathname || '').startsWith('/admin');
+  const isSellerPage = (pathname || '').startsWith('/seller');
+  const userRole = user?.role?.toLowerCase();
+  const hideCart = isAdminPage || isSellerPage || userRole === 'admin' || userRole === 'seller';
 
   // Ensure we only render auth UI after client hydration
   useEffect(() => {
@@ -91,7 +96,7 @@ export default function Header() {
 
               {/* Search Bar */}
               {showSearch && (
-                <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-3xl">
+                <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-3xl mx-auto">
                   <SearchDropdown />
                 </div>
               )}
@@ -100,18 +105,19 @@ export default function Header() {
             {/* Right Actions */}
             <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
               
-              {/* Cart */}
-              <Link 
-                href="/cart" 
-                className="relative p-2 text-white hover:bg-white hover:bg-opacity-10 rounded-xl transition-all duration-200 group"
-              >
-                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-105 transition-transform" />
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shadow-lg border-2 border-white">
-                    {itemCount > 99 ? '99+' : itemCount}
-                  </span>
-                )}
-              </Link>
+              {!hideCart && (
+                <Link 
+                  href="/cart" 
+                  className="relative p-2 text-white hover:bg-white hover:bg-opacity-10 rounded-xl transition-all duration-200 group"
+                >
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-105 transition-transform" />
+                  {itemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shadow-lg border-2 border-white">
+                      {itemCount > 99 ? '99+' : itemCount}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               {/* User Menu */}
               {mounted && (isAuthenticated && displayUser ? (
@@ -163,36 +169,31 @@ export default function Header() {
 
                           {/* Menu Items */}
                           <div className="py-2">
-                            <Link 
-                              href="/profile" 
-                              onClick={() => setIsMenuOpen(false)} 
-                              className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
-                            >
-                              <UserIcon className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
-                              <span className="font-medium">Hồ sơ cá nhân</span>
-                            </Link>
-                            
-                            <Link 
-                              href="/my-orders" 
-                              onClick={() => setIsMenuOpen(false)} 
-                              className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
-                            >
-                              <Package className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
-                              <span className="font-medium">Đơn hàng của tôi</span>
-                            </Link>
-                            
-                            {displayUser?.role === 'admin' && (
-                              <Link 
-                                href="/admin" 
-                                onClick={() => setIsMenuOpen(false)} 
-                                className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
-                              >
-                                <Settings className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
-                                <span className="font-medium">Quản lý Admin</span>
-                              </Link>
+                            {/* Only show profile and orders for regular users, not admin/seller */}
+                            {(displayUser?.role === 'user' || !displayUser?.role) && (
+                              <>
+                                <Link 
+                                  href="/profile" 
+                                  onClick={() => setIsMenuOpen(false)} 
+                                  className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
+                                >
+                                  <UserIcon className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                                  <span className="font-medium">Hồ sơ cá nhân</span>
+                                </Link>
+                                
+                                <Link 
+                                  href="/my-orders" 
+                                  onClick={() => setIsMenuOpen(false)} 
+                                  className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-all duration-200 group"
+                                >
+                                  <Package className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                                  <span className="font-medium">Đơn hàng của tôi</span>
+                                </Link>
+                              </>
                             )}
 
-                            {displayUser?.role !== 'admin' && (
+                            {/* Show seller link for admin and seller */}
+                            {(displayUser?.role === 'admin' || displayUser?.role === 'seller') && (
                               <Link 
                                 href="/seller/inventory" 
                                 onClick={() => setIsMenuOpen(false)} 
@@ -234,7 +235,12 @@ export default function Header() {
               ) : (
                 /* Login Button */
                 <Link 
-                  href="/auth/login" 
+                  href="/auth/login"
+                  prefetch={false}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push('/auth/login');
+                  }}
                   className="flex items-center space-x-2 px-3 py-2 text-white hover:bg-white hover:bg-opacity-10 rounded-xl transition-all duration-200 text-sm font-medium group"
                 >
                   <UserIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />

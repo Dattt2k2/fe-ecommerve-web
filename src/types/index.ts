@@ -13,7 +13,7 @@ export interface Product {
   stock: number;
   rating: number;
   reviews: number;
-  sold?: number;
+  sold_count?: number;
   tags?: string[];
   featured?: boolean;
   isActive?: boolean;
@@ -36,7 +36,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'seller';
   addresses?: Address[];
 }
 
@@ -101,12 +101,17 @@ export interface AuthResponse {
 }
 
 export interface LoginResponse {
-  message: string;
+  message?: string;
   email: string;
-  role: string;
-  uid: string;
+  role?: string;
+  user_type?: string;
+  uid?: string;
+  user_id?: string;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string;
 }
 
 export interface RegisterResponse {

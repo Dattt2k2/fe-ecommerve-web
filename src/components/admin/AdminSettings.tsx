@@ -65,15 +65,15 @@ export default function AdminSettings() {
   const [showPassword, setShowPassword] = useState(false);
   const [settings, setSettings] = useState<AdminSettingsData>({
     // General Settings
-    siteName: 'ShopVN',
+    siteName: 'Ecommo',
     siteDescription: 'Cửa hàng điện tử trực tuyến hàng đầu Việt Nam',
-    contactEmail: 'contact@shopvn.com',
+    contactEmail: 'contact@ecommo.com',
     contactPhone: '1900-1234',
     address: '123 Nguyễn Văn Linh, Quận 7, TP.HCM',
     
     // Admin Profile
-    adminName: 'Admin ShopVN',
-    adminEmail: 'admin@shopvn.com',
+    adminName: 'Admin Ecommo',
+    adminEmail: 'admin@ecommo.com',
     adminPhone: '0901234567',
     currentPassword: '',
     newPassword: '',

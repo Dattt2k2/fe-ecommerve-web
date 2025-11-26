@@ -15,8 +15,9 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types';
-import { useProducts, useDeleteProduct, useProductCategories } from '@/hooks/useApi';
+import { useProducts, useDeleteProduct, useCategoryList } from '@/hooks/useApi';
 import { formatPrice } from '@/lib/utils';
+import CategoryManagement from './CategoryManagement';
 
 interface ProductsResponse {
   data?: Product[];
@@ -27,12 +28,15 @@ interface ProductsResponse {
 }
 
 export default function ProductManagement() {
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // API params for products - memoized to prevent unnecessary re-renders
   const apiParams = useMemo(() => ({
@@ -54,8 +58,9 @@ export default function ProductManagement() {
 
   const { 
     data: categoriesData, 
-    loading: categoriesLoading 
-  } = useProductCategories();
+    loading: categoriesLoading,
+    refetch: refetchCategories
+  } = useCategoryList();
 
   const { 
     mutate: deleteProduct, 
@@ -65,21 +70,35 @@ export default function ProductManagement() {
   const products: Product[] = apiResponse?.data || apiResponse?.products || [];
   const totalProducts = apiResponse?.total || products.length || 0;
   const totalPages = Math.ceil(totalProducts / itemsPerPage);
-  const categories =
-    categoriesData && typeof categoriesData === 'object' && 'categories' in categoriesData
-      ? (categoriesData.categories as string[])
-      : [];
+  // Extract categories from API response - handle both array of objects and array of strings
+  const categories = Array.isArray(categoriesData)
+    ? categoriesData.map((cat: any) => typeof cat === 'string' ? cat : cat.name)
+    : [];
 
   // Handle delete product
-  const handleDeleteProduct = async (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      try {
-        await deleteProduct(id);
-        // Refetch data after successful delete
-        refetch();
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xóa sản phẩm');
-      }
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setProductToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    try {
+      await deleteProduct(productToDelete.id);
+      // Refetch data after successful delete
+      refetch();
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+    } catch (error) {
+      alert('Có lỗi xảy ra khi xóa sản phẩm');
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     }
   };
 
@@ -175,6 +194,40 @@ export default function ProductManagement() {
             </div>
           </div>
 
+          {/* Tabs */}
+          <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'products'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                Sản phẩm
+              </button>
+              <button
+                onClick={() => setActiveTab('categories')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'categories'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                Danh mục
+              </button>
+            </nav>
+          </div>
+
+          {/* Category Management Tab */}
+          {activeTab === 'categories' && (
+            <CategoryManagement onCategoriesChange={refetchCategories} />
+          )}
+
+          {/* Products Tab */}
+          {activeTab === 'products' && (
+            <>
           {/* Filters */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -337,7 +390,7 @@ export default function ProductManagement() {
                             <Edit className="w-4 h-4" />
                           </Link>
                           <button
-                            onClick={() => handleDeleteProduct(product.id)}
+                            onClick={() => handleDeleteClick(product)}
                             className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -360,8 +413,46 @@ export default function ProductManagement() {
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
+                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Xác nhận xóa
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Bạn có chắc chắn muốn xóa sản phẩm <strong>"{productToDelete.name}"</strong>? 
+              Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deleteLoading}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? 'Đang xóa...' : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

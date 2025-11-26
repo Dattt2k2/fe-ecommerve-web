@@ -3,15 +3,28 @@
 import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
-import { Minus, Plus, X, ShoppingBag, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Minus, Plus, X, ShoppingBag, ArrowLeft, AlertCircle, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+
+type DeleteAction = 'clear' | 'item' | 'quantity';
 
 export default function CartPage() {
   const { items, total, itemCount, updateQuantity, removeFromCart, clearCart } = useCart();
   const [error, setError] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteAction, setDeleteAction] = useState<DeleteAction | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
+    // Nếu số lượng về 0, hiển thị modal xác nhận
+    if (newQuantity === 0) {
+      setDeleteAction('quantity');
+      setDeleteItemId(itemId);
+      setShowDeleteModal(true);
+      return;
+    }
+    
     const result = await updateQuantity(itemId, newQuantity);
     if (!result.success) {
       setError(result.message || 'Có lỗi xảy ra');
@@ -20,19 +33,57 @@ export default function CartPage() {
   };
   
   const handleRemoveItem = async (itemId: string) => {
-    const result = await removeFromCart(itemId);
-    if (!result.success) {
-      setError(result.message || 'Có lỗi xảy ra');
-      setTimeout(() => setError(''), 5000);
-    }
+    setDeleteAction('item');
+    setDeleteItemId(itemId);
+    setShowDeleteModal(true);
   };
   
   const handleClearCart = async () => {
-    const result = await clearCart();
-    if (!result.success) {
-      setError(result.message || 'Có lỗi xảy ra');
-      setTimeout(() => setError(''), 5000);
+    setDeleteAction('clear');
+    setDeleteItemId(null);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteAction === 'clear') {
+      const result = await clearCart();
+      if (!result.success) {
+        setError(result.message || 'Có lỗi xảy ra');
+        setTimeout(() => setError(''), 5000);
+      }
+    } else if (deleteAction === 'item' && deleteItemId) {
+      const result = await removeFromCart(deleteItemId);
+      if (!result.success) {
+        setError(result.message || 'Có lỗi xảy ra');
+        setTimeout(() => setError(''), 5000);
+      }
+    } else if (deleteAction === 'quantity' && deleteItemId) {
+      const result = await updateQuantity(deleteItemId, 0);
+      if (!result.success) {
+        setError(result.message || 'Có lỗi xảy ra');
+        setTimeout(() => setError(''), 5000);
+      }
     }
+    
+    setShowDeleteModal(false);
+    setDeleteAction(null);
+    setDeleteItemId(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteAction(null);
+    setDeleteItemId(null);
+  };
+
+  const getDeleteMessage = () => {
+    if (deleteAction === 'clear') {
+      return 'Bạn có chắc chắn muốn xóa tất cả sản phẩm khỏi giỏ hàng?';
+    } else if (deleteAction === 'item' || deleteAction === 'quantity') {
+      const item = items.find(i => i.id === deleteItemId);
+      return `Bạn có chắc chắn muốn xóa "${item?.product.name}" khỏi giỏ hàng?`;
+    }
+    return '';
   };
 
   if (items.length === 0) {
@@ -127,8 +178,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
@@ -246,6 +296,41 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
+                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Xác nhận xóa
+              </h3>
+            </div>
+            
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {getDeleteMessage()}
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

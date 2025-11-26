@@ -31,6 +31,7 @@ export function useApi<T>(
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depsString]);
 
   return { data, loading, error, refetch: fetchData };
@@ -40,15 +41,52 @@ export function useApi<T>(
 export function useProducts(params?: any) {
   // Memoize params to prevent unnecessary re-renders
   const memoizedParams = useMemo(() => params, [JSON.stringify(params)]);
-  return useApi(() => productsAPI.getProducts(memoizedParams), [memoizedParams]);
+  // Skip API call if params is null
+  const shouldSkip = memoizedParams === null;
+  
+  return useApi(
+    () => {
+      if (shouldSkip) {
+        return Promise.resolve({ products: [], pagination: { page: 1, total: 0, pages: 1, has_next: false, has_prev: false } });
+      }
+      return productsAPI.getProducts(memoizedParams);
+    },
+    [JSON.stringify(memoizedParams), shouldSkip]
+  );
 }
 
 export function useProduct(id: string) {
   return useApi(() => productsAPI.getProduct(id), [id]);
 }
 
+export function useAdvancedSearch(params?: any) {
+  const memoizedParams = useMemo(() => params, [JSON.stringify(params)]);
+  // Skip API call if params is null
+  const shouldSkip = memoizedParams === null;
+  
+  const paramsKey = useMemo(() => {
+    if (memoizedParams === null) return 'null';
+    return JSON.stringify(memoizedParams);
+  }, [memoizedParams]);
+  
+  
+  return useApi(
+    () => {
+      if (shouldSkip) {
+        return Promise.resolve({ products: [], pagination: { page: 1, total: 0, pages: 1, has_next: false, has_prev: false } });
+      }
+      return productsAPI.searchAdvanced(memoizedParams);
+    },
+    [paramsKey, shouldSkip]
+  );
+}
+
 export function useProductCategories() {
   return useApi(() => productsAPI.getCategories(), []);
+}
+
+export function useCategoryList() {
+  return useApi(() => productsAPI.getCategoryList(), []);
 }
 
 // Orders hooks
@@ -60,8 +98,8 @@ export function useOrder(id: string) {
   return useApi(() => ordersAPI.getOrder(id), [id]);
 }
 
-export function useUserOrders(userId: string) {
-  return useApi(() => ordersAPI.getUserOrders(userId), [userId]);
+export function useUserOrders() {
+  return useApi(() => ordersAPI.getUserOrders(), []);
 }
 
 // Users/Customers hooks
@@ -125,9 +163,18 @@ export function useDeleteProduct() {
   return useMutation((id: string) => productsAPI.deleteProduct(id));
 }
 
+// Category mutations
+export function useCreateCategory() {
+  return useMutation((name: string) => productsAPI.createCategory(name));
+}
+
+export function useDeleteCategory() {
+  return useMutation((id: string) => productsAPI.deleteCategory(id));
+}
+
 // Order mutations
 export function useCreateOrder() {
-  return useMutation(ordersAPI.createOrder);
+  return useMutation(ordersAPI.createOrderDirect);
 }
 
 export function useUpdateOrder() {

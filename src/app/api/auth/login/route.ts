@@ -54,11 +54,16 @@ export async function POST(request: NextRequest) {
           }
         } catch (e) { /* ignore */ }
         
+        // Map user_type to role for frontend compatibility
+        const userType = responseData.user_type || responseData.role || 'USER';
+        const role = userType.toLowerCase();
+        
         const response = NextResponse.json({
           success: true,
           ...responseData,
-          uid: responseData.id || responseData.uid, 
-          role: responseData.role || 'user', 
+          uid: responseData.user_id || responseData.id || responseData.uid, 
+          role: role, // Map user_type to role
+          user_type: userType, // Keep original for reference
         });
         
         // Set auth token in cookie

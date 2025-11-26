@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ShopVN - E-commerce Platform",
+  title: "Ecommo - E-commerce Platform",
   description: "Nền tảng mua sắm trực tuyến hàng đầu Việt Nam",
 };
 

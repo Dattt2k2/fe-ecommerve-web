@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Filter, 
@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { Order, Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
+import { apiClient } from '@/lib/apiClient';
 
 // Mock orders data
 const mockOrders: (Order & { customerName: string; customerEmail: string })[] = [
@@ -101,14 +102,145 @@ const mockOrders: (Order & { customerName: string; customerEmail: string })[] = 
   // Add more mock orders...
 ];
 
+interface AdminOrder {
+  id: string;
+  userId: string;
+  customerName?: string;
+  customerEmail?: string;
+  items: Array<{
+    productId?: string;
+    ProductID?: string;
+    quantity: number;
+    Quantity?: number;
+    price: number;
+    Price?: number;
+    name?: string;
+    Name?: string;
+  }>;
+  total: number;
+  TotalPrice?: number;
+  status: string;
+  Status?: string;
+  PaymentStatus?: string;
+  ShippingStatus?: string;
+  shippingAddress?: string;
+  ShippingAddress?: string;
+  createdAt: Date | string;
+  CreatedAt?: string;
+  updatedAt: Date | string;
+  UpdatedAt?: string;
+}
+
 export default function OrderManagement() {
-  const [orders, setOrders] = useState(mockOrders);
-  const [filteredOrders, setFilteredOrders] = useState(mockOrders);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<AdminOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Normalize status from backend format to frontend format
+  const normalizeStatus = (s: any): string => {
+    if (!s && s !== 0) return 'pending';
+    const raw = String(s).toLowerCase();
+    // Normalize common variants
+    if (raw === 'canceled' || raw === 'cancelled') return 'canceled';
+    // Map payment release variants
+    if (raw.includes('release') || raw === 'payment_released' || raw === 'released') return 'payment_release';
+    // Map shipping statuses
+    if (raw === 'pending' || raw === 'payment_held' || raw === 'held') return 'pending';
+    if (raw === 'processing') return 'processing';
+    if (raw === 'delivering' || raw === 'shipping' || raw === 'in_transit' || raw === 'in-transit') return 'shipped';
+    if (raw === 'shipped') return 'shipped';
+    if (raw === 'delivered' || raw === 'completed') return 'delivered';
+    // If uppercase, convert and try again
+    const upperRaw = String(s).toUpperCase();
+    if (upperRaw === 'PENDING' || upperRaw === 'PAYMENT_HELD') return 'pending';
+    if (upperRaw === 'PROCESSING') return 'processing';
+    if (upperRaw === 'DELIVERING' || upperRaw === 'SHIPPING' || upperRaw === 'IN_TRANSIT') return 'shipped';
+    if (upperRaw === 'SHIPPED') return 'shipped';
+    if (upperRaw === 'DELIVERED' || upperRaw === 'COMPLETED') return 'delivered';
+    if (upperRaw === 'CANCELED' || upperRaw === 'CANCELED') return 'canceled';
+    if (upperRaw.includes('RELEASE') || upperRaw === 'PAYMENT_RELEASED') return 'payment_release';
+    return raw;
+  };
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await apiClient.get('/api/orders');
+      const data = response.data || response;
+      
+      // Handle different response structures
+      let orderList: any[] = [];
+      if (data?.data && Array.isArray(data.data)) {
+        orderList = data.data;
+      } else if (Array.isArray(data)) {
+        orderList = data;
+      } else if (data?.orders) {
+        orderList = data.orders;
+      }
+      
+      // Normalize order data
+      const normalizedOrders: AdminOrder[] = orderList.map((order: any) => {
+        const mainStatus = order.Status || order.status;
+        const shippingStatus = order.ShippingStatus || order.shipping_status;
+        const paymentStatus = order.PaymentStatus || order.payment_status;
+        
+        // Determine final status
+        let finalStatus = 'pending';
+        if (mainStatus) {
+          const normalizedMain = normalizeStatus(mainStatus);
+          if (['processing', 'shipped', 'delivered', 'cancelled', 'payment_release'].includes(normalizedMain)) {
+            finalStatus = normalizedMain;
+          } else if (shippingStatus) {
+            finalStatus = normalizeStatus(shippingStatus);
+          } else if (paymentStatus) {
+            finalStatus = normalizeStatus(paymentStatus);
+          } else {
+            finalStatus = normalizedMain;
+          }
+        } else if (shippingStatus) {
+          finalStatus = normalizeStatus(shippingStatus);
+        } else if (paymentStatus) {
+          finalStatus = normalizeStatus(paymentStatus);
+        }
+        
+        return {
+          id: order.OrderID || order.ID || order.id,
+          userId: order.UserID || order.user_id || order.userId,
+          customerName: order.customerName || order.CustomerName || 'N/A',
+          customerEmail: order.customerEmail || order.CustomerEmail || '',
+          items: (order.Items || order.items || []).map((item: any) => ({
+            productId: item.ProductID || item.product_id || item.productId,
+            quantity: item.Quantity || item.quantity || 0,
+            price: item.Price || item.price || 0,
+            name: item.Name || item.name,
+          })),
+          total: order.TotalPrice || order.total_price || order.totalPrice || 0,
+          status: finalStatus,
+          shippingAddress: order.ShippingAddress || order.shipping_address || order.shippingAddress,
+          createdAt: order.CreatedAt || order.created_at || order.createdAt || new Date(),
+          updatedAt: order.UpdatedAt || order.updated_at || order.UpdatedAt || new Date(),
+        };
+      });
+      
+      setOrders(normalizedOrders);
+    } catch (err: any) {
+      console.error('[AdminOrders] Fetch error:', err);
+      setError('Không thể tải danh sách đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   useEffect(() => {
     filterAndSortOrders();
@@ -117,8 +249,8 @@ export default function OrderManagement() {
   const filterAndSortOrders = () => {
     let filtered = orders.filter(order => {
       const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+                           (order.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (order.customerEmail || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
       
       return matchesSearch && matchesStatus;
@@ -138,8 +270,8 @@ export default function OrderManagement() {
           bValue = b.total;
           break;
         case 'customerName':
-          aValue = a.customerName.toLowerCase();
-          bValue = b.customerName.toLowerCase();
+          aValue = (a.customerName || '').toLowerCase();
+          bValue = (b.customerName || '').toLowerCase();
           break;
         default:
           aValue = new Date(a.createdAt).getTime();
@@ -154,12 +286,24 @@ export default function OrderManagement() {
     setFilteredOrders(filtered);
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: Order['status']) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, status: newStatus, updatedAt: new Date() }
-        : order
-    ));
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      // Map frontend status to backend format
+      const statusMap: Record<string, string> = {
+        'pending': 'PENDING',
+        'processing': 'PROCESSING',
+        'shipped': 'DELIVERING',
+        'delivered': 'DELIVERED',
+        'cancelled': 'CANCELLED',
+      };
+      
+      const backendStatus = statusMap[newStatus] || newStatus.toUpperCase();
+      await apiClient.post(`/orders/${orderId}/update-status`, { status: backendStatus });
+      await fetchOrders(); // Refresh orders list
+    } catch (err: any) {
+      console.error('Error updating order status:', err);
+      setError('Không thể cập nhật trạng thái đơn hàng');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -174,6 +318,8 @@ export default function OrderManagement() {
         return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
       case 'cancelled':
         return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400';
+      case 'payment_release':
+        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
       default:
         return 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-400';
     }
@@ -191,6 +337,8 @@ export default function OrderManagement() {
         return 'Đã giao';
       case 'cancelled':
         return 'Đã hủy';
+      case 'payment_release':
+        return 'Đã giải ngân';
       default:
         return status;
     }
@@ -208,6 +356,8 @@ export default function OrderManagement() {
         return <CheckCircle className="w-4 h-4" />;
       case 'cancelled':
         return <AlertCircle className="w-4 h-4" />;
+      case 'payment_release':
+        return <CheckCircle className="w-4 h-4" />;
       default:
         return <Clock className="w-4 h-4" />;
     }
@@ -316,7 +466,7 @@ export default function OrderManagement() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Đã giao</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {orders.filter(o => o.status === 'delivered').length}
+                    {orders.filter(o => o.status === 'delivered' || o.status === 'payment_release').length}
                   </p>
                 </div>
               </div>
@@ -350,6 +500,7 @@ export default function OrderManagement() {
                 <option value="shipped">Đã gửi</option>
                 <option value="delivered">Đã giao</option>
                 <option value="cancelled">Đã hủy</option>
+                <option value="payment_release">Đã giải ngân</option>
               </select>
 
               {/* Sort By */}
@@ -431,7 +582,7 @@ export default function OrderManagement() {
                           {order.items.length} sản phẩm
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {order.items[0]?.product.name}
+                          {order.items[0]?.name || 'N/A'}
                           {order.items.length > 1 && ` +${order.items.length - 1} khác`}
                         </div>
                       </td>
@@ -459,7 +610,7 @@ export default function OrderManagement() {
                           </Link>
                           <select
                             value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
+                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
                             className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"
                           >
                             <option value="pending">Chờ xử lý</option>

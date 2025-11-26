@@ -40,6 +40,28 @@ export async function GET(request: NextRequest) {
       requiresAuth = false;
     }
     
+    // Forward pagination params (page, limit) to backend
+    const paginationParams: string[] = [];
+    if (searchParams.get('page')) {
+      paginationParams.push(`page=${searchParams.get('page')}`);
+    }
+    if (searchParams.get('limit')) {
+      paginationParams.push(`limit=${searchParams.get('limit')}`);
+    }
+    
+    // Forward other query params (search, sortBy, sortOrder, etc.)
+    const otherParams = ['search', 'sortBy', 'sortOrder'];
+    otherParams.forEach(param => {
+      if (searchParams.get(param)) {
+        paginationParams.push(`${param}=${encodeURIComponent(searchParams.get(param)!)}`);
+      }
+    });
+    
+    if (paginationParams.length > 0) {
+      const separator = endpoint.includes('?') ? '&' : '?';
+      endpoint += `${separator}${paginationParams.join('&')}`;
+    }
+    
     // Check authorization if required
     let authHeader = null;
     if (requiresAuth) {

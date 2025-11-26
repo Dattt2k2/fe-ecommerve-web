@@ -1,0 +1,136 @@
+"filename", "language", "TypeScript JSX", "TypeScript", "PostCSS", "comment", "blank", "total"
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\analytics\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\customers\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\orders\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\products\[id]\edit\page.tsx", "TypeScript JSX", 25, 0, 0, 2, 6, 33
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\products\[id]\page.tsx", "TypeScript JSX", 18, 0, 0, 0, 6, 24
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\products\add\page.tsx", "TypeScript JSX", 16, 0, 0, 0, 3, 19
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\products\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\admin\settings\page.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\app\api\admin\analytics\route.ts", "TypeScript", 0, 104, 0, 5, 6, 115
+"c:\Users\dat\fe-e_commerce_app\src\app\api\admin\customers\[id]\route.ts", "TypeScript", 0, 113, 0, 9, 19, 141
+"c:\Users\dat\fe-e_commerce_app\src\app\api\admin\customers\route.ts", "TypeScript", 0, 85, 0, 6, 9, 100
+"c:\Users\dat\fe-e_commerce_app\src\app\api\admin\dashboard\route.ts", "TypeScript", 0, 56, 0, 2, 3, 61
+"c:\Users\dat\fe-e_commerce_app\src\app\api\auth\login\route.ts", "TypeScript", 0, 103, 0, 8, 10, 121
+"c:\Users\dat\fe-e_commerce_app\src\app\api\auth\logout\route.ts", "TypeScript", 0, 21, 0, 2, 5, 28
+"c:\Users\dat\fe-e_commerce_app\src\app\api\auth\refresh-token\route.ts", "TypeScript", 0, 85, 0, 7, 9, 101
+"c:\Users\dat\fe-e_commerce_app\src\app\api\auth\register\route.ts", "TypeScript", 0, 109, 0, 7, 12, 128
+"c:\Users\dat\fe-e_commerce_app\src\app\api\cart\[id]\route.ts", "TypeScript", 0, 72, 0, 2, 16, 90
+"c:\Users\dat\fe-e_commerce_app\src\app\api\cart\add\[product_id]\route.ts", "TypeScript", 0, 38, 0, 4, 11, 53
+"c:\Users\dat\fe-e_commerce_app\src\app\api\cart\route.ts", "TypeScript", 0, 74, 0, 2, 16, 92
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\confirm-delivery\route.ts", "TypeScript", 0, 42, 0, 2, 10, 54
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\route.ts", "TypeScript", 0, 110, 0, 8, 20, 138
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\update-status\route.ts", "TypeScript", 0, 43, 0, 2, 10, 55
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\cancel\[orderId]\route.ts", "TypeScript", 0, 53, 0, 5, 14, 72
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\cart\route.ts", "TypeScript", 0, 48, 0, 5, 13, 66
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\create\route.ts", "TypeScript", 0, 65, 0, 11, 16, 92
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\direct\route.ts", "TypeScript", 0, 48, 0, 5, 13, 66
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\route.ts", "TypeScript", 0, 46, 0, 4, 12, 62
+"c:\Users\dat\fe-e_commerce_app\src\app\api\orders\user\route.ts", "TypeScript", 0, 50, 0, 5, 13, 68
+"c:\Users\dat\fe-e_commerce_app\src\app\api\payment\create-checkout-session\route.ts", "TypeScript", 0, 90, 0, 4, 14, 108
+"c:\Users\dat\fe-e_commerce_app\src\app\api\payment\create-payment-intent\route.ts", "TypeScript", 0, 59, 0, 3, 11, 73
+"c:\Users\dat\fe-e_commerce_app\src\app\api\product\review\[product_id]\route.ts", "TypeScript", 0, 118, 0, 15, 23, 156
+"c:\Users\dat\fe-e_commerce_app\src\app\api\products\[id]\route.ts", "TypeScript", 0, 122, 0, 23, 23, 168
+"c:\Users\dat\fe-e_commerce_app\src\app\api\products\route.ts", "TypeScript", 0, 189, 0, 26, 42, 257
+"c:\Users\dat\fe-e_commerce_app\src\app\api\profile\route.ts", "TypeScript", 0, 31, 0, 0, 8, 39
+"c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\[id]\reviews\route.ts", "TypeScript", 0, 21, 0, 0, 5, 26
+"c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\[id]\route.ts", "TypeScript", 0, 50, 0, 2, 8, 60
+"c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\create-reviews\[product_id]\route.ts", "TypeScript", 0, 89, 0, 13, 15, 117
+"c:\Users\dat\fe-e_commerce_app\src\app\api\seller\orders\route.ts", "TypeScript", 0, 59, 0, 6, 14, 79
+"c:\Users\dat\fe-e_commerce_app\src\app\api\seller\products\[id]\route.ts", "TypeScript", 0, 93, 0, 4, 24, 121
+"c:\Users\dat\fe-e_commerce_app\src\app\api\seller\products\route.ts", "TypeScript", 0, 92, 0, 5, 23, 120
+"c:\Users\dat\fe-e_commerce_app\src\app\api\upload\batch-presigned-url\route.ts", "TypeScript", 0, 47, 0, 4, 11, 62
+"c:\Users\dat\fe-e_commerce_app\src\app\api\upload\file\route.ts", "TypeScript", 0, 50, 0, 5, 12, 67
+"c:\Users\dat\fe-e_commerce_app\src\app\api\upload\presigned-url\route.ts", "TypeScript", 0, 50, 0, 4, 12, 66
+"c:\Users\dat\fe-e_commerce_app\src\app\api\user\addresses\[id]\route.ts", "TypeScript", 0, 93, 0, 4, 24, 121
+"c:\Users\dat\fe-e_commerce_app\src\app\api\user\addresses\route.ts", "TypeScript", 0, 92, 0, 5, 23, 120
+"c:\Users\dat\fe-e_commerce_app\src\app\api\user\users\route.ts", "TypeScript", 0, 41, 0, 7, 12, 60
+"c:\Users\dat\fe-e_commerce_app\src\app\api\users\[id]\route.ts", "TypeScript", 0, 113, 0, 10, 17, 140
+"c:\Users\dat\fe-e_commerce_app\src\app\api\users\route.ts", "TypeScript", 0, 94, 0, 10, 15, 119
+"c:\Users\dat\fe-e_commerce_app\src\app\api\vendors\register\route.ts", "TypeScript", 0, 49, 0, 3, 10, 62
+"c:\Users\dat\fe-e_commerce_app\src\app\api\vendors\route.ts", "TypeScript", 0, 27, 0, 0, 5, 32
+"c:\Users\dat\fe-e_commerce_app\src\app\auth\forgot-password\page.tsx", "TypeScript JSX", 152, 0, 0, 1, 14, 167
+"c:\Users\dat\fe-e_commerce_app\src\app\auth\forgot-pasword\page.tsx", "TypeScript JSX", 122, 0, 0, 2, 13, 137
+"c:\Users\dat\fe-e_commerce_app\src\app\auth\login\page.tsx", "TypeScript JSX", 16, 0, 0, 1, 2, 19
+"c:\Users\dat\fe-e_commerce_app\src\app\auth\register\page.tsx", "TypeScript JSX", 16, 0, 0, 1, 2, 19
+"c:\Users\dat\fe-e_commerce_app\src\app\cart\page.tsx", "TypeScript JSX", 216, 0, 0, 12, 24, 252
+"c:\Users\dat\fe-e_commerce_app\src\app\checkout\page.tsx", "TypeScript JSX", 411, 0, 0, 13, 40, 464
+"c:\Users\dat\fe-e_commerce_app\src\app\checkout\success\page.tsx", "TypeScript JSX", 94, 0, 0, 2, 16, 112
+"c:\Users\dat\fe-e_commerce_app\src\app\globals-old.css", "PostCSS", 0, 0, 81, 7, 16, 104
+"c:\Users\dat\fe-e_commerce_app\src\app\globals.css", "PostCSS", 0, 0, 63, 5, 11, 79
+"c:\Users\dat\fe-e_commerce_app\src\app\layout.tsx", "TypeScript JSX", 53, 0, 0, 0, 5, 58
+"c:\Users\dat\fe-e_commerce_app\src\app\my-orders\page.tsx", "TypeScript JSX", 526, 0, 0, 24, 35, 585
+"c:\Users\dat\fe-e_commerce_app\src\app\order\page.tsx", "TypeScript JSX", 413, 0, 0, 21, 50, 484
+"c:\Users\dat\fe-e_commerce_app\src\app\page.tsx", "TypeScript JSX", 73, 0, 0, 4, 12, 89
+"c:\Users\dat\fe-e_commerce_app\src\app\payment\page.tsx", "TypeScript JSX", 98, 0, 0, 7, 14, 119
+"c:\Users\dat\fe-e_commerce_app\src\app\payment\success\page.tsx", "TypeScript JSX", 37, 0, 0, 4, 8, 49
+"c:\Users\dat\fe-e_commerce_app\src\app\products\[id]\page.tsx", "TypeScript JSX", 439, 0, 0, 22, 47, 508
+"c:\Users\dat\fe-e_commerce_app\src\app\products\page.tsx", "TypeScript JSX", 273, 0, 0, 20, 25, 318
+"c:\Users\dat\fe-e_commerce_app\src\app\profile\page.tsx", "TypeScript JSX", 95, 0, 0, 117, 29, 241
+"c:\Users\dat\fe-e_commerce_app\src\app\responsive-demo\page.tsx", "TypeScript JSX", 38, 0, 0, 1, 4, 43
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\account\page.tsx", "TypeScript JSX", 289, 0, 0, 4, 32, 325
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\inventory\page.tsx", "TypeScript JSX", 4, 0, 0, 0, 3, 7
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\layout.tsx", "TypeScript JSX", 12, 0, 0, 0, 3, 15
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\orders\page.tsx", "TypeScript JSX", 550, 0, 0, 34, 53, 637
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\page.tsx", "TypeScript JSX", 4, 0, 0, 1, 2, 7
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\products\page.tsx", "TypeScript JSX", 75, 0, 0, 4, 12, 91
+"c:\Users\dat\fe-e_commerce_app\src\app\seller\revenue\page.tsx", "TypeScript JSX", 89, 0, 0, 1, 5, 95
+"c:\Users\dat\fe-e_commerce_app\src\app\test-css\page.tsx", "TypeScript JSX", 74, 0, 0, 5, 7, 86
+"c:\Users\dat\fe-e_commerce_app\src\app\test-upload\page.tsx", "TypeScript JSX", 67, 0, 0, 0, 10, 77
+"c:\Users\dat\fe-e_commerce_app\src\app\theme-demo\page.tsx", "TypeScript JSX", 157, 0, 0, 8, 18, 183
+"c:\Users\dat\fe-e_commerce_app\src\components\SearchDropdown.tsx", "TypeScript JSX", 148, 0, 0, 3, 10, 161
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\AdminDashboard.tsx", "TypeScript JSX", 393, 0, 0, 8, 22, 423
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\AdminSettings.tsx", "TypeScript JSX", 621, 0, 0, 24, 60, 705
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\AnalyticsManagement.tsx", "TypeScript JSX", 301, 0, 0, 10, 23, 334
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement.tsx", "TypeScript JSX", 379, 0, 0, 14, 28, 421
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_clean.tsx", "TypeScript JSX", 316, 0, 0, 16, 21, 353
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_new.tsx", "TypeScript JSX", 421, 0, 0, 21, 41, 483
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_simple.tsx", "TypeScript JSX", 256, 0, 0, 14, 16, 286
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\OrderManagement.tsx", "TypeScript JSX", 456, 0, 0, 11, 29, 496
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductDetail.tsx", "TypeScript JSX", 387, 0, 0, 16, 41, 444
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductForm.tsx", "TypeScript JSX", 564, 0, 0, 12, 54, 630
+"c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductManagement.tsx", "TypeScript JSX", 338, 0, 0, 11, 19, 368
+"c:\Users\dat\fe-e_commerce_app\src\components\auth\LoginForm.tsx", "TypeScript JSX", 214, 0, 0, 17, 30, 261
+"c:\Users\dat\fe-e_commerce_app\src\components\auth\RegisterForm.tsx", "TypeScript JSX", 297, 0, 0, 13, 28, 338
+"c:\Users\dat\fe-e_commerce_app\src\components\layout\Footer.tsx", "TypeScript JSX", 148, 0, 0, 6, 8, 162
+"c:\Users\dat\fe-e_commerce_app\src\components\layout\Header.tsx", "TypeScript JSX", 210, 0, 0, 18, 22, 250
+"c:\Users\dat\fe-e_commerce_app\src\components\payment\StripeCheckout.tsx", "TypeScript JSX", 104, 0, 0, 7, 15, 126
+"c:\Users\dat\fe-e_commerce_app\src\components\payment\StripePaymentModal.tsx", "TypeScript JSX", 209, 0, 0, 9, 24, 242
+"c:\Users\dat\fe-e_commerce_app\src\components\payment\StripeProvider.tsx", "TypeScript JSX", 17, 0, 0, 0, 5, 22
+"c:\Users\dat\fe-e_commerce_app\src\components\product\AddToCartButton.tsx", "TypeScript JSX", 198, 0, 0, 6, 18, 222
+"c:\Users\dat\fe-e_commerce_app\src\components\product\ProductActions.tsx", "TypeScript JSX", 38, 0, 0, 2, 6, 46
+"c:\Users\dat\fe-e_commerce_app\src\components\product\ProductCard.tsx", "TypeScript JSX", 184, 0, 0, 1, 17, 202
+"c:\Users\dat\fe-e_commerce_app\src\components\product\ProductImageGallery.tsx", "TypeScript JSX", 83, 0, 0, 7, 13, 103
+"c:\Users\dat\fe-e_commerce_app\src\components\product\ProductReviews.tsx", "TypeScript JSX", 369, 0, 0, 15, 38, 422
+"c:\Users\dat\fe-e_commerce_app\src\components\product\RelatedProducts.tsx", "TypeScript JSX", 77, 0, 0, 3, 13, 93
+"c:\Users\dat\fe-e_commerce_app\src\components\profile\AddressManagementPage.tsx", "TypeScript JSX", 307, 0, 0, 13, 24, 344
+"c:\Users\dat\fe-e_commerce_app\src\components\profile\ProfileDetails.tsx", "TypeScript JSX", 246, 0, 0, 18, 29, 293
+"c:\Users\dat\fe-e_commerce_app\src\components\profile\ProfileSidebar.tsx", "TypeScript JSX", 52, 0, 0, 0, 5, 57
+"c:\Users\dat\fe-e_commerce_app\src\components\seller\InventoryManagement.tsx", "TypeScript JSX", 776, 0, 0, 74, 107, 957
+"c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerDashboard.tsx", "TypeScript JSX", 118, 0, 0, 10, 18, 146
+"c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerDashboardWrapper.tsx", "TypeScript JSX", 9, 0, 0, 0, 3, 12
+"c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerRevenueChart.tsx", "TypeScript JSX", 26, 0, 0, 0, 4, 30
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\Button.tsx", "TypeScript JSX", 34, 0, 0, 0, 6, 40
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\Card.tsx", "TypeScript JSX", 33, 0, 0, 0, 6, 39
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ImageUploader.tsx", "TypeScript JSX", 188, 0, 0, 12, 42, 242
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\Modal.tsx", "TypeScript JSX", 59, 0, 0, 1, 8, 68
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ResponsiveDemo.tsx", "TypeScript JSX", 90, 0, 0, 6, 11, 107
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\SmoothLink.tsx", "TypeScript JSX", 49, 0, 0, 7, 8, 64
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeStatus.tsx", "TypeScript JSX", 84, 0, 0, 1, 12, 97
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeTester.tsx", "TypeScript JSX", 103, 0, 0, 2, 14, 119
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeToggle.tsx", "TypeScript JSX", 100, 0, 0, 3, 12, 115
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeToggleButton.tsx", "TypeScript JSX", 32, 0, 0, 1, 6, 39
+"c:\Users\dat\fe-e_commerce_app\src\components\ui\Toast.tsx", "TypeScript JSX", 91, 0, 0, 1, 9, 101
+"c:\Users\dat\fe-e_commerce_app\src\context\AuthContext.tsx", "TypeScript JSX", 168, 0, 0, 27, 31, 226
+"c:\Users\dat\fe-e_commerce_app\src\context\CartContext.tsx", "TypeScript JSX", 264, 0, 0, 27, 41, 332
+"c:\Users\dat\fe-e_commerce_app\src\context\ThemeContext.tsx", "TypeScript JSX", 77, 0, 0, 5, 15, 97
+"c:\Users\dat\fe-e_commerce_app\src\context\ToastContext.tsx", "TypeScript JSX", 122, 0, 0, 2, 24, 148
+"c:\Users\dat\fe-e_commerce_app\src\hooks\useApi.ts", "TypeScript", 0, 109, 0, 12, 28, 149
+"c:\Users\dat\fe-e_commerce_app\src\lib\api.ts", "TypeScript", 0, 597, 0, 97, 112, 806
+"c:\Users\dat\fe-e_commerce_app\src\lib\apiClient.ts", "TypeScript", 0, 90, 0, 3, 16, 109
+"c:\Users\dat\fe-e_commerce_app\src\lib\imageUtils.ts", "TypeScript", 0, 139, 0, 24, 36, 199
+"c:\Users\dat\fe-e_commerce_app\src\lib\stripe.ts", "TypeScript", 0, 43, 0, 1, 8, 52
+"c:\Users\dat\fe-e_commerce_app\src\lib\utils.ts", "TypeScript", 0, 32, 0, 0, 6, 38
+"c:\Users\dat\fe-e_commerce_app\src\types\index.ts", "TypeScript", 0, 119, 0, 2, 14, 135
+"Total", "-", 14262, 4163, 144, 1190, 2389, 22148

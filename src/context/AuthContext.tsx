@@ -8,7 +8,7 @@ import { authAPI, clearAuthData } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ role: string }>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -69,7 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await authAPI.getUserById(userId);
         if (profile) {
           console.log('[AuthContext] User profile fetched successfully:', profile);
-          setUser(profile);
+          // Get role from user_type (backend field) or role field, normalize to lowercase
+          const userType = (profile as any).user_type || profile.role || 'USER';
+          const normalizedRole = userType.toLowerCase();
+          const userWithNormalizedRole = {
+            ...profile,
+            role: (normalizedRole === 'admin' || normalizedRole === 'seller' || normalizedRole === 'user') 
+              ? normalizedRole as 'user' | 'admin' | 'seller'
+              : 'user' as 'user' | 'admin' | 'seller',
+          };
+          setUser(userWithNormalizedRole);
         }
       } catch (err: any) {
         console.log('[AuthContext] Error fetching user profile:', err);
@@ -95,12 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
      
       
+      // Get role from user_type or role field, normalize to lowercase
+      const userType = response.user_type || response.role || 'USER';
+      const normalizedRole = userType.toLowerCase();
+      
+      // Ensure we have a valid user ID
+      const userId = response.user_id || response.uid;
+      if (!userId) {
+        throw new Error('Không nhận được user ID từ server');
+      }
+      
       // Create temporary user object for immediate use
       const user = {
-        id: response.uid,
+        id: userId,
         email: response.email,
-        name: response.email.split('@')[0], // Temporary name from email
-        role: response.role as 'user' | 'admin',
+        name: response.first_name || response.name || response.email.split('@')[0],
+        role: (normalizedRole === 'admin' || normalizedRole === 'seller' || normalizedRole === 'user') 
+          ? normalizedRole as 'user' | 'admin' | 'seller'
+          : 'user' as 'user' | 'admin' | 'seller',
       };
       setUser(user);
 
@@ -109,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.refresh_token) {
         localStorage.setItem('refresh_token', response.refresh_token);
       }
-      localStorage.setItem('user_id', response.uid);
+      localStorage.setItem('user_id', userId);
 
       // Also save token to cookies for middleware
       document.cookie = `auth-token=${response.access_token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
@@ -123,11 +144,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch full user profile from API in background (optional - if endpoint exists)
       // Only fetch if we don't already have detailed profile for this user
-      if (!user || user.id !== response.uid || !user.name || user.name === response.email.split('@')[0]) {
+      if (!user || user.id !== userId || !user.name || user.name === response.email.split('@')[0]) {
         try {
-          const fullProfile = await authAPI.getUserById(response.uid);
+          const fullProfile = await authAPI.getUserById(userId);
           if (fullProfile) {
-            setUser(fullProfile);
+            // Get role from user_type (backend field) or role field, normalize to lowercase
+            const userType = (fullProfile as any).user_type || fullProfile.role || 'USER';
+            const normalizedRole = userType.toLowerCase();
+            const finalRole = (normalizedRole === 'admin' || normalizedRole === 'seller' || normalizedRole === 'user') 
+              ? normalizedRole as 'user' | 'admin' | 'seller'
+              : 'user' as 'user' | 'admin' | 'seller';
+            const userWithNormalizedRole = {
+              ...fullProfile,
+              role: finalRole,
+            };
+            setUser(userWithNormalizedRole);
           }
         } catch (err: any) {
           // Silently fail if endpoint doesn't exist - we already have basic user info from login response
@@ -144,6 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Return role for redirect logic
+      return { role: user.role };
+      
       // Don't redirect here - let the calling component handle it
     } catch (error: any) {
       // Clear any partial state on error

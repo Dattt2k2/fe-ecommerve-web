@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Upload, X, Plus, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
-import { useProduct, useCreateProduct, useUpdateProduct } from '@/hooks/useApi';
+import { useProduct, useCreateProduct, useUpdateProduct, useCategoryList } from '@/hooks/useApi';
 
 interface ProductFormProps {
   productId?: string;
@@ -29,17 +29,6 @@ interface ProductFormData {
   };
 }
 
-const categories = [
-  'Điện thoại',
-  'Laptop',
-  'Tablet',
-  'Phụ kiện',
-  'Tai nghe',
-  'Đồng hồ thông minh',
-  'Máy ảnh',
-  'Gaming'
-];
-
 const brands = [
   'Apple',
   'Samsung',
@@ -63,8 +52,14 @@ export default function ProductForm({ productId }: ProductFormProps) {
   const { data: productData, loading: productLoading } = useProduct(productId || '');
   const { mutate: createProduct, loading: createLoading } = useCreateProduct();
   const { mutate: updateProduct, loading: updateLoading } = useUpdateProduct();
+  const { data: categoriesData, loading: categoriesLoading } = useCategoryList();
   
   const isLoading = createLoading || updateLoading;
+  
+  // Extract categories from API response
+  const categories = Array.isArray(categoriesData) 
+    ? categoriesData.map((cat: any) => cat.name || cat)
+    : [];
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -326,14 +321,19 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
+                disabled={categoriesLoading}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
                   errors.category ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <option value="">Chọn danh mục</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
+                <option value="">{categoriesLoading ? 'Đang tải danh mục...' : 'Chọn danh mục'}</option>
+                {categories.map((category: any) => {
+                  const categoryName = typeof category === 'string' ? category : category.name;
+                  const categoryValue = typeof category === 'string' ? category : category.name;
+                  return (
+                    <option key={categoryValue} value={categoryValue}>{categoryName}</option>
+                  );
+                })}
               </select>
               {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
             </div>

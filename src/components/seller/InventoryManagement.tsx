@@ -21,6 +21,8 @@ import Image from 'next/image';
 import { uploadAPI, forceClientLogout, apiClient, API_ENDPOINTS } from '@/lib/api';
 import { processImages, formatFileSize, type ImageProcessingOptions } from '@/lib/imageUtils';
 import { useToast } from '@/context/ToastContext';
+import { useCategoryList } from '@/hooks/useApi';
+import CategoryManagement from '@/components/admin/CategoryManagement';
 
 interface Product {
   id: string;
@@ -50,6 +52,9 @@ interface ProductFormData {
 export default function InventoryManagement() {
   const { showError, showSuccess, showWarning } = useToast();
   
+  // States for tabs
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  
   // States for product list
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,8 @@ export default function InventoryManagement() {
   // States for product form modal
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -82,8 +89,13 @@ export default function InventoryManagement() {
   const [imageQuality, setImageQuality] = useState(0.8);
   const [maxImageSize, setMaxImageSize] = useState(1920);
 
-  // Categories (could be fetched from API)
-  const categories = ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Other'];
+  // Fetch categories from API
+  const { data: categoriesData, loading: categoriesLoading, refetch: refetchCategories } = useCategoryList();
+  
+  // Extract categories from API response
+  const categories = Array.isArray(categoriesData)
+    ? categoriesData.map((cat: any) => typeof cat === 'string' ? cat : cat.name)
+    : [];
 
   // Fetch products from API via proxy
   const fetchProducts = async () => {
@@ -184,7 +196,7 @@ export default function InventoryManagement() {
       if (totalSavings > 0) {
       }
       
-      setSelectedFiles(prev => [...prev, ...processedFiles]); // Add to existing files
+      setSelectedFiles(prev => [...prev, ...processedFiles]); 
     } catch (error) {
       showError('Lỗi khi xử lý ảnh');
     } finally {
@@ -418,8 +430,18 @@ export default function InventoryManagement() {
   };
 
   // Delete product
-  const handleDelete = async (productId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setProductToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
     
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
@@ -429,7 +451,7 @@ export default function InventoryManagement() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`/api/products?id=${productId}`, {
+      const response = await fetch(`/api/products?id=${productToDelete.id}`, {
         method: 'DELETE',
         headers,
       });
@@ -438,10 +460,14 @@ export default function InventoryManagement() {
       
       await fetchProducts();
       showSuccess('Xóa sản phẩm thành công!');
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     } catch (error: any) {
       const errorMsg = error.message || 'Lỗi khi xóa sản phẩm';
       setError(errorMsg);
       showError(errorMsg);
+      setShowDeleteModal(false);
+      setProductToDelete(null);
     }
   };
 
@@ -476,18 +502,56 @@ export default function InventoryManagement() {
             Làm mới
           </button>
           
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
-            type="submit"
-            style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 100 }} // Fixed position to ensure visibility.
-          >
-            <Plus className="w-4 h-4" />
-            Thêm sản phẩm
-          </button>
+          {activeTab === 'products' && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+              type="submit"
+              style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 100 }} // Fixed position to ensure visibility.
+            >
+              <Plus className="w-4 h-4" />
+              Thêm sản phẩm
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-700">
+        <nav className="flex space-x-8">
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'products'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
+            }`}
+          >
+            Sản phẩm
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'categories'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
+            }`}
+          >
+            Danh mục
+          </button>
+        </nav>
+      </div>
+
+      {/* Category Management Tab */}
+      {activeTab === 'categories' && (
+        <div className="bg-gray-900 rounded-lg p-6">
+          <CategoryManagement onCategoriesChange={refetchCategories} />
+        </div>
+      )}
+
+      {/* Products Tab */}
+      {activeTab === 'products' && (
+        <>
       {/* Filters and Search */}
       <div className="bg-white/5 rounded-lg p-4 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -507,9 +571,10 @@ export default function InventoryManagement() {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            disabled={categoriesLoading}
+            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="all">Tất cả danh mục</option>
+            <option value="all">{categoriesLoading ? 'Đang tải...' : 'Tất cả danh mục'}</option>
             {categories.map(category => (
               <option key={category} value={category}>{category}</option>
             ))}
@@ -641,7 +706,7 @@ export default function InventoryManagement() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(product.id)}
+                          onClick={() => handleDeleteClick(product)}
                           className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                           title="Xóa"
                         >
@@ -798,9 +863,10 @@ export default function InventoryManagement() {
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      disabled={categoriesLoading}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="">Chọn danh mục</option>
+                      <option value="">{categoriesLoading ? 'Đang tải danh mục...' : 'Chọn danh mục'}</option>
                       {categories.map(category => (
                         <option key={category} value={category}>{category}</option>
                       ))}
@@ -950,6 +1016,42 @@ export default function InventoryManagement() {
             </div>
           </div>
         </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-red-500/20 rounded-full">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white">
+                Xác nhận xóa
+              </h3>
+            </div>
+            <p className="text-gray-300 mb-6">
+              Bạn có chắc chắn muốn xóa sản phẩm <strong className="text-white">"{productToDelete.name}"</strong>? 
+              Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

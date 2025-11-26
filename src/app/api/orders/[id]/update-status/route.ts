@@ -19,7 +19,30 @@ export async function POST(
       );
     }
 
-    console.log(`[API /orders/${id}/update-status] Forwarding to backend with status:`, body.status);
+    // Map frontend status to backend format
+    const statusMap: Record<string, string> = {
+      'PENDING': 'pending',
+      'PROCESSING': 'processing',
+      'DELIVERING': 'shipping',
+      'DELIVERED': 'delivered',
+      'CANCELLED': 'cancelled',
+    };
+
+    const frontendStatus = (body.status || '').toUpperCase();
+    const backendStatus = statusMap[frontendStatus] || body.status?.toLowerCase() || body.status;
+
+    const requestBody: any = {};
+    if (['shipping', 'delivered', 'processing'].includes(backendStatus)) {
+      requestBody.shipping_status = backendStatus;
+    } else if (backendStatus === 'cancelled') {
+      requestBody.status = backendStatus;
+    } else {
+      // For PENDING or other statuses, try both
+      requestBody.shipping_status = backendStatus;
+      requestBody.status = backendStatus;
+    }
+
+    console.log(`[API /orders/${id}/update-status] Mapped status:`, frontendStatus, '->', backendStatus, 'requestBody:', requestBody);
 
     // Forward to backend API
     const backendUrl = `${BACKEND_URL}/orders/${id}/update-status`;
@@ -29,7 +52,7 @@ export async function POST(
         'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
 
     console.log(`[API /orders/${id}/update-status] Backend response:`, response.status);

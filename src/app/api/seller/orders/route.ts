@@ -27,7 +27,20 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') || '10';
     const month = searchParams.get('month'); // Optional: filter by month (1-12)
     const year = searchParams.get('year');   // Optional: filter by year
-    const status = searchParams.get('status'); // Optional: filter by status (pending, confirmed, shipped, delivered, cancelled)
+    let status = searchParams.get('status'); // Optional: filter by status (pending, confirmed, shipped, delivered, cancelled)
+    
+    // Normalize status: map frontend status to backend format
+    if (status) {
+      const statusMap: Record<string, string> = {
+        'CANCELLED': 'CANCELED', // Map CANCELLED (2 L) to CANCELED (1 L) for backend
+        'PENDING': 'PENDING',
+        'PROCESSING': 'PROCESSING',
+        'DELIVERING': 'DELIVERING',
+        'DELIVERED': 'DELIVERED',
+        'PAYMENT_RELEASE': 'PAYMENT_RELEASED',
+      };
+      status = statusMap[status] || status;
+    }
     
     // Build query string with all params
     const queryParams = new URLSearchParams();

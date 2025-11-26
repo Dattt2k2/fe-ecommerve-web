@@ -103,6 +103,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
+      // Admin and seller don't have carts, skip API call
+      const userRole = user.role?.toLowerCase();
+      if (userRole === 'admin' || userRole === 'seller') {
+        dispatch({ type: 'CLEAR_CART' });
+        return;
+      }
+
       try {
         const response = await cartAPI.getCart();
         

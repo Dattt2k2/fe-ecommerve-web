@@ -5,7 +5,7 @@ import { User } from '@/types';
 const users: User[] = [
   {
     id: '1',
-    email: 'admin@shopvn.com',
+    email: 'admin@ecommo.com',
     name: 'Admin User',
     role: 'admin'
   },

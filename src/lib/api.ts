@@ -26,7 +26,12 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
     DELETE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
     SEARCH: USE_INTERNAL_API ? '/products/search' : '/products/search',
+    ADVANCED_SEARCH: USE_INTERNAL_API ? '/products/advanced-search' : '/products/advanced-search',
     CATEGORIES: USE_INTERNAL_API ? '/products/categories' : '/products/categories',
+    CATEGORY_LIST: '/api/products/get/category', // Always use Next.js proxy route for client-side calls
+    CATEGORY_CREATE: '/api/products/category', // Always use Next.js proxy route for client-side calls
+    CATEGORY_DELETE: (id: string) => `/api/products/category/${id}`, // Always use Next.js proxy route for client-side calls
+    STATISTICS: '/api/products/statistics', // Always use Next.js proxy route for client-side calls
   },
   ORDERS: {
     LIST: USE_INTERNAL_API ? '/orders' : '/admin/orders',
@@ -37,6 +42,7 @@ export const API_ENDPOINTS = {
     ORDER_FROM_CART: USE_INTERNAL_API ? '/api/orders/cart' : '/order/cart',
     ORDER_DIRECT: '/api/orders/direct', // Always use Next.js proxy route for client-side calls
     CANCEL_ORDER: (orderId: string) => `/api/orders/cancel/${orderId}`, // Always use Next.js proxy route for client-side calls
+    STATISTICS: '/api/orders/statistics', // Always use Next.js proxy route for client-side calls
   },
   USERS: {
     LIST: USE_INTERNAL_API ? '/me' : '/me',
@@ -194,9 +200,12 @@ class ApiClient {
       
       // Handle authentication errors (401)
       if (response.status === 401) {
-        // Don't trigger handleAuthError on login/register endpoints or review GET requests
+        // Don't trigger handleAuthError on login/register endpoints, review GET requests, or public endpoints
         const isLoginEndpoint = url.includes('/login') || url.includes('/register');
         const isReviewGetRequest = url.includes('/review/') && config.method === 'GET';
+        // Public endpoints that don't require authentication (categories, products listing, etc.)
+        const isPublicEndpoint = url.includes('/api/products/get/category') || url.includes('/api/products/category') || 
+                                 (url.includes('/api/products') && config.method === 'GET' && !url.includes('/seller'));
         
         console.log('[ApiClient] 401 Error:', {
           url,
@@ -500,24 +509,25 @@ export const authAPI = {
 };
 
 export const productsAPI = {
-  getProducts: async (params?: Record<string, string>): Promise<{ products: Product[]; pagination: any }> => {
-    const queryString = params ? `?${new URLSearchParams(params)}` : '';
+  getProducts: async (params?: Record<string, any>): Promise<{ products: Product[]; pagination: any }> => {
+    const queryString = params ? `?${new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined && value !== null) {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {} as Record<string, string>)
+    )}` : '';
     const endpoint = `/api/products${queryString}`;
     
-    
-    // Always use the backend API URL (port 8080)
     try {
-      const baseUrl = 'http://api.example.com';
-      // Use a new URL object to ensure it's an absolute URL (prevents Next.js from adding _rsc params)
-      const fullUrl = new URL(endpoint, baseUrl).toString();
-      
-      
-      const response = await safeFetch(fullUrl, {
+      const response = await fetch(endpoint, {
         headers: {
           'Content-Type': 'application/json',
-        }
+          'Accept': 'application/json',
+        },
+        cache: 'no-store',
       });
-      
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -526,8 +536,7 @@ export const productsAPI = {
       
       const data = await response.json();
       
-      // Backend returns: { data: [...], cached: false, page: 1, total: 2, etc }
-      // Transform to expected format: { products: [...], pagination: {...} }
+
       return {
         products: data.data || [],
         pagination: {
@@ -550,9 +559,7 @@ export const productsAPI = {
       console.log(`[Server] Getting product ${id} via proxy`);
     }
     
-    // Use Next.js proxy route handler /api/products/[id]
-    // Note: /products/get/:id is a PUBLIC endpoint, so don't send Authorization header
-    // Sending a stale/invalid token can cause 401 response from backend
+
     try {
       const proxyEndpoint = `/api/products/${id}`;
       
@@ -604,7 +611,88 @@ export const productsAPI = {
   
   getCategories: (): Promise<{ categories: string[] }> => 
     apiClient.get(API_ENDPOINTS.PRODUCTS.CATEGORIES),
+  
+  // Category management
+  getCategoryList: async (): Promise<Array<{ id: string; name: string }>> => {
+    const response = await apiClient.get<{ data: Array<{ id: string; name: string; created_at?: string }> }>(API_ENDPOINTS.PRODUCTS.CATEGORY_LIST);
+    // API returns { data: [...] }, extract the array
+    return response?.data || (Array.isArray(response) ? response : []);
+  },
+  
+  createCategory: (name: string): Promise<{ id: string; name: string }> => 
+    apiClient.post(API_ENDPOINTS.PRODUCTS.CATEGORY_CREATE, { name }),
+  
+  deleteCategory: (id: string): Promise<{ message: string }> => 
+    apiClient.delete(API_ENDPOINTS.PRODUCTS.CATEGORY_DELETE(id)),
+  
+  // Get product statistics
+  getStatistics: (): Promise<{
+    data: {
+      growth_percentage: number;
+      previous_total_products: number;
+      top_selling_products: Array<{
+        name: string;
+        price: number;
+        product_id: string;
+        sold_count: number;
+      } | null>;
+      total_products: number;
+    };
+  }> => apiClient.get(API_ENDPOINTS.PRODUCTS.STATISTICS),
+
+  searchAdvanced: async (params?: Record<string, any>): Promise<{ products: Product[]; pagination: any }> => {
+    const queryString = params ? `?${new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (key === '_useSearch') return acc;
+        if (value !== undefined && value !== null) {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {} as Record<string, string>)
+    )}` : '';
+    const endpoint = `/api/search/advanced${queryString}`;
+        
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const productsArray = Array.isArray(data.data) ? data.data : (data.products || []);
+      const total = data.total || 0;
+      const currentPage = data.page || 1;
+      const limit = data.limit || 10;
+
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+      
+      return {
+        products: productsArray,
+        pagination: {
+          page: currentPage,
+          total: total,
+          pages: totalPages,
+          has_next: data.has_next || false,
+          has_prev: data.has_prev || false
+        }
+      };
+      
+    } catch (error) {
+      throw error;
+    }
+  },
+    
 };
+
+
 
 export const ordersAPI = {
   // Admin: Get all orders
@@ -634,6 +722,19 @@ export const ordersAPI = {
   // Cancel order
   cancelOrder: (orderId: string): Promise<{ message: string }> => 
     apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(orderId), {}),
+  
+  // Get order statistics
+  getStatistics: (): Promise<{
+    month: number;
+    year: number;
+    total_orders: number;
+    total_revenue: number;
+    order_growth: number;
+    revenue_growth: number;
+    previous_orders: number;
+    previous_revenue: number;
+  }> => 
+    apiClient.get(API_ENDPOINTS.ORDERS.STATISTICS),
 };
 
 export const usersAPI = {

@@ -70,7 +70,7 @@ const SearchDropdown = () => {
         <input
           type="text"
           placeholder="Tìm sản phẩm, thương hiệu..."
-          className="w-full bg-white rounded-full px-4 sm:px-6 py-2 sm:py-3 pr-10 sm:pr-12 text-sm sm:text-base text-gray-700 placeholder-gray-500 border-none outline-none focus:ring-2 focus:ring-orange-200 transition-all shadow-sm"
+          className="w-full bg-white rounded-full px-3 sm:px-4 py-1.5 sm:py-2 pr-9 sm:pr-10 text-sm text-gray-700 placeholder-gray-500 border-none outline-none focus:ring-2 focus:ring-orange-200 transition-all shadow-sm "
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && results.length > 0 && setShowDropdown(true)}
@@ -108,23 +108,90 @@ const SearchDropdown = () => {
                   >
                     <div className="flex items-center space-x-3">
                       {/* Product Image */}
-                      <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
-                        {(product.image_url || product.ImageURL || product.images?.[0]) ? (
-                          <img
-                            src={product.image_url || product.ImageURL || product.images?.[0]}
-                            alt={product.name || product.Name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/placeholder-product.png';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                        )}
+                      <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded overflow-hidden relative">
+                        {(() => {
+                          let imageUrl = null;
+                          
+                          if (product.image_path) {
+                            if (Array.isArray(product.image_path) && product.image_path.length > 0) {
+                              imageUrl = product.image_path[0];
+                            } 
+                            else if (typeof product.image_path === 'string') {
+                              imageUrl = product.image_path;
+                            }
+                          }
+                          
+                          if (imageUrl) {
+                            try {
+                              const originalUrl = imageUrl;
+                              
+                              while (imageUrl.includes('%')) {
+                                const decoded = decodeURIComponent(imageUrl);
+                                if (decoded === imageUrl) break;
+                                imageUrl = decoded;
+                              }
+                              
+                              const urlMatch = imageUrl.match(/https?:\/\/[^\/]+\/https?:\/?\/?([^\/]+\.s3\.[^\/]+)(.+)/);
+                              if (urlMatch) {
+                                imageUrl = `https://${urlMatch[1]}${urlMatch[2]}`;
+                              } else {
+                                imageUrl = imageUrl.replace(/https:\/(?!\/)/g, 'https://');
+                                const httpsMatches = imageUrl.matchAll(/https?:\/\/[^\s"']+/g);
+                                const matches = Array.from(httpsMatches) as RegExpMatchArray[];
+                                if (matches.length > 1) {
+                                  const lastMatch = matches[matches.length - 1];
+                                  if (lastMatch && lastMatch[0]) {
+                                    imageUrl = lastMatch[0];
+                                  }
+                                }
+                              }
+                              
+                              console.log('[SearchDropdown] Image URL processing:', {
+                                original: originalUrl,
+                                decoded: imageUrl,
+                                productId: product.id || product.ID
+                              });
+                            } catch (e) {
+                              console.error('[SearchDropdown] Error processing URL:', e);
+                            }
+                          }
+                          
+                          return imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={product.name || product.Name}
+                              className="w-full h-full object-cover"
+                              style={{ display: 'block' }}
+                              onError={(e) => {
+                                console.error('[SearchDropdown] Image load error for:', imageUrl);
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  const existingPlaceholder = parent.querySelector('.placeholder-icon');
+                                  if (!existingPlaceholder) {
+                                    const placeholder = document.createElement('div');
+                                    placeholder.className = 'placeholder-icon absolute inset-0 w-full h-full flex items-center justify-center text-gray-400 bg-gray-100';
+                                    placeholder.innerHTML = `
+                                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                    `;
+                                    parent.appendChild(placeholder);
+                                  }
+                                }
+                              }}
+                              onLoad={() => {
+                                console.log('[SearchDropdown] Image loaded successfully');
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{product.name || product.Name}</p>

@@ -1,14 +1,14 @@
 // src/components/auth/LoginForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const router = useRouter();
   
   const [formData, setFormData] = useState({
@@ -68,10 +68,17 @@ export default function LoginForm() {
     
     try {
      
-      await login(formData.email, formData.password);
+      const loginResult = await login(formData.email, formData.password);
      
-      // Login successful - redirect to home page
-      await router.push('/');
+      // Get user role from login result
+      const userRole = loginResult.role?.toLowerCase();
+      
+      // Redirect based on role: admin and seller go to seller page, others go to home
+      if (userRole === 'admin' || userRole === 'seller') {
+        await router.push('/seller');
+      } else {
+        await router.push('/');
+      }
    
     } catch (error: any) {
 

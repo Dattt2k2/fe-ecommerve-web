@@ -74,7 +74,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
               
               {product.tags && (
                 <div className="flex flex-wrap gap-1 mb-3">
-                  {product.tags.slice(0, 3).map((tag) => (
+                  {product.tags.slice(0, 2).map((tag) => (
                     <span
                       key={tag}
                       className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded"
@@ -95,7 +95,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                   </span>
                 </div>
                 
-                <button 
+                {/* <button 
                   onClick={handleAddToCart}
                   disabled={product.stock <= 0}
                   className={`${
@@ -106,7 +106,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                 >
                   <ShoppingCart className="w-5 h-5" />
                   {product.stock <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group h-full flex flex-col justify-between">
       <SmoothLink href={`/products/${product.id}`}>
         <div className="relative aspect-square overflow-hidden bg-gray-200 dark:bg-gray-700">
           {product.image && (
@@ -133,25 +133,25 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             </div>
           )}
           
-          {/* Stock indicator */}
+          {/* Stock indicator
           {product.stock < 10 && (
             <div className="absolute bottom-2 left-2 bg-orange-500 text-white px-2 py-1 text-xs rounded">
               Chỉ còn {product.stock}
             </div>
-          )}
+          )} */}
         </div>
       </SmoothLink>
       
       <div className="p-4">
         <SmoothLink href={`/products/${product.id}`}>
-          <h3 className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 mb-2">
+          <h3 className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 mb-2 min-h-[3rem]">
             {product.name}
           </h3>
         </SmoothLink>
         
-        <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-3">
+        {/* <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-3">
           {product.description}
-        </p>
+        </p> */}
         
         <div className="flex items-center mb-3">
           <div className="flex items-center">
@@ -164,7 +164,7 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
               />
             ))}
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">({product.reviews})</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">({product.rating})</span>
         </div>
         
         {product.tags && (
@@ -183,17 +183,11 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
           <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatPrice(product.price)}
           </span>
-          <button 
-            onClick={handleAddToCart}
-            disabled={product.stock <= 0}
-            className={`${
-              product.stock <= 0 
-                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg'
-            } p-2.5 rounded-xl transition-all duration-200 group transform hover:scale-110`}
-          >
-            <ShoppingCart className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">(Đã bán {product.sold_count})</span>
+          </div>
+          
         </div>
       </div>
     </div>

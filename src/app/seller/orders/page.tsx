@@ -37,6 +37,10 @@ interface Order {
   ShippingAddress?: string;
   customerEmail?: string;
   CustomerEmail?: string;
+  deliveryDate?: string;
+  paymentReleaseDate?: string;
+  paymentStatus?: string;
+  shippingStatus?: string;
 }
 
 export default function SellerOrdersPage() {
@@ -127,19 +131,28 @@ export default function SellerOrdersPage() {
       // Normalize order data (convert PascalCase to camelCase)
       const normalizeStatus = (s: any) => {
         if (!s && s !== 0) return 'PENDING';
-        const raw = String(s).toUpperCase();
+        const raw = String(s).toLowerCase();
         // Normalize common variants
-        if (raw === 'CANCELED' || raw === 'CANCELLED') return 'CANCELLED';
+        if (raw === 'canceled' || raw === 'cancelled') return 'CANCELLED';
         // Map payment release variants to our dedicated PAYMENT_RELEASE stage
-        if (raw.includes('RELEASE') || raw === 'PAYMENT_RELEASED' || raw === 'RELEASED') return 'PAYMENT_RELEASE';
-        if (raw.includes('PENDING') || raw === 'PAYMENT_HELD') return 'PENDING';
-        if (raw === 'PROCESSING') return 'PROCESSING';
+        if (raw.includes('release') || raw === 'payment_released' || raw === 'released') return 'PAYMENT_RELEASE';
+        // Map shipping statuses
+        if (raw === 'pending' || raw === 'payment_held' || raw === 'held') return 'PENDING';
+        if (raw === 'processing') return 'PROCESSING';
         // Map different "in transit" variants to our internal DELIVERING state
-        if (raw === 'DELIVERING' || raw === 'SHIPPING' || raw === 'IN_TRANSIT') return 'DELIVERING';
-        // API 'SHIPPED' flag should be considered 'DELIVERED' in our UI
-        if (raw === 'SHIPPED') return 'DELIVERED';
-        if (raw === 'DELIVERED' || raw === 'COMPLETED') return 'DELIVERED';
-        return raw;
+        if (raw === 'delivering' || raw === 'shipping' || raw === 'in_transit' || raw === 'in-transit') return 'DELIVERING';
+        // API 'shipped' flag should be considered 'DELIVERED' in our UI
+        if (raw === 'shipped') return 'DELIVERED';
+        if (raw === 'delivered' || raw === 'completed') return 'DELIVERED';
+        // If uppercase, convert and try again
+        const upperRaw = String(s).toUpperCase();
+        if (upperRaw === 'PENDING' || upperRaw === 'PAYMENT_HELD') return 'PENDING';
+        if (upperRaw === 'PROCESSING') return 'PROCESSING';
+        if (upperRaw === 'DELIVERING' || upperRaw === 'SHIPPING' || upperRaw === 'IN_TRANSIT') return 'DELIVERING';
+        if (upperRaw === 'SHIPPED') return 'DELIVERED';
+        if (upperRaw === 'DELIVERED' || upperRaw === 'COMPLETED') return 'DELIVERED';
+        if (upperRaw === 'CANCELED' || upperRaw === 'CANCELLED') return 'CANCELLED';
+        return upperRaw;
       };
 
       const normalizedOrders = orderList.map((order: any) => ({
@@ -153,13 +166,52 @@ export default function SellerOrdersPage() {
         })),
         totalPrice: order.TotalPrice || order.total_price || order.totalPrice || 0,
         // Normalize status variants so UI shows correct badge (e.g. CANCELED -> CANCELLED)
-        // Also consider shipping status variants returned by backend
-        // Prefer PaymentStatus if available so that PAYMENT_RELEASE (or similar) overrides a generic order status like PENDING
-        status: normalizeStatus(order.PaymentStatus || order.payment_status || order.Status || order.status || order.ShippingStatus || order.shipping_status || 'PENDING'),
+        // Priority: Status (main order status) > ShippingStatus (for shipping flow) > PaymentStatus (for payment flow)
+        // If Status is PROCESSING/DELIVERING/DELIVERED, use it. Otherwise check ShippingStatus
+        status: (() => {
+          const mainStatus = order.Status || order.status;
+          const shippingStatus = order.ShippingStatus || order.shipping_status;
+          const paymentStatus = order.PaymentStatus || order.payment_status;
+          
+          // If main Status exists, normalize it first
+          if (mainStatus) {
+            const normalizedMain = normalizeStatus(mainStatus);
+            // If it's a valid status (shipping, payment release, or cancelled), use it
+            if (['PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'PAYMENT_RELEASE'].includes(normalizedMain)) {
+              return normalizedMain;
+            }
+            // If normalized status is not in our list, check if ShippingStatus or PaymentStatus is more relevant
+            // But if mainStatus is PAYMENT_RELEASED, we should return PAYMENT_RELEASE
+            if (normalizedMain === 'PAYMENT_RELEASE') {
+              return normalizedMain;
+            }
+            // Fallback to ShippingStatus or PaymentStatus
+            if (shippingStatus) {
+              return normalizeStatus(shippingStatus);
+            }
+            if (paymentStatus) {
+              return normalizeStatus(paymentStatus);
+            }
+            return normalizedMain;
+          }
+          
+          // If no mainStatus, check ShippingStatus then PaymentStatus
+          if (shippingStatus) {
+            return normalizeStatus(shippingStatus);
+          }
+          if (paymentStatus) {
+            return normalizeStatus(paymentStatus);
+          }
+          return 'PENDING';
+        })(),
         createdAt: order.CreatedAt || order.created_at || order.CreatedAt,
         updatedAt: order.UpdatedAt || order.updated_at || order.UpdatedAt,
         shippingAddress: order.ShippingAddress || order.shipping_address || order.shippingAddress,
         customerEmail: order.CustomerEmail || order.customer_email || order.customerEmail,
+        deliveryDate: order.delivery_date || order.deliveryDate,
+        paymentReleaseDate: order.payment_release_date || order.paymentReleaseDate,
+        paymentStatus: order.PaymentStatus || order.payment_status,
+        shippingStatus: order.ShippingStatus || order.shipping_status,
       }));
       
       console.log('[SellerOrders] Normalized orders:', normalizedOrders);
@@ -614,6 +666,26 @@ export default function SellerOrdersPage() {
                   {expandedOrder.createdAt ? new Date(expandedOrder.createdAt).toLocaleString('vi-VN') : 'N/A'}
                 </p>
               </div>
+
+              {/* Ngày giao hàng */}
+              {expandedOrder.deliveryDate && (
+                <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1 block">Ngày giao hàng</label>
+                  <p className="text-white font-medium">
+                    {new Date(expandedOrder.deliveryDate).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              )}
+
+              {/* Ngày giải ngân */}
+              {expandedOrder.paymentReleaseDate && (
+                <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1 block">Ngày giải ngân</label>
+                  <p className="text-white font-medium">
+                    {new Date(expandedOrder.paymentReleaseDate).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Footer - Fixed */}

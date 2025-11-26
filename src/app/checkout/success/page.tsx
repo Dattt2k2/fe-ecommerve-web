@@ -36,7 +36,7 @@ export default function CheckoutSuccessPage() {
         </h1>
         
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Cảm ơn bạn đã mua sắm tại ShopVN. Đơn hàng của bạn đã được xác nhận và đang được xử lý.
+          Cảm ơn bạn đã mua sắm tại Ecommo. Đơn hàng của bạn đã được xác nhận và đang được xử lý.
         </p>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">

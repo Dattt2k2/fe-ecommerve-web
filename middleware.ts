@@ -11,6 +11,9 @@ export function middleware(request: NextRequest) {
   // Check if this is an admin route
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
   
+  // Check if this is a seller route
+  const isSellerRoute = request.nextUrl.pathname.startsWith('/seller');
+  
   // Public API endpoints that don't require authentication
   const isPublicApiRoute = request.nextUrl.pathname.match(/^\/api\/products\/[^/]+$/) && request.method === 'GET';
   const isPublicProductsRoute = request.nextUrl.pathname.startsWith('/api/products') && request.method === 'GET';
@@ -75,13 +78,90 @@ export function middleware(request: NextRequest) {
       // Verify the token
       const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
       
-      // Check if user has admin role
-      if (payload.role !== 'admin') {
-        return NextResponse.redirect(new URL('/', request.url));
+      // Get role from user_type (backend field) or role field
+      const userType = payload.user_type || payload.role;
+      
+      // Normalize role to lowercase for comparison
+      const userRole = userType?.toLowerCase();
+      
+      // Redirect admin and seller to seller page instead of admin page
+      if (userRole === 'admin' || userRole === 'seller') {
+        return NextResponse.redirect(new URL('/seller', request.url));
       }
+      
+      // If user doesn't have admin or seller role, redirect to home
+      return NextResponse.redirect(new URL('/', request.url));
     } catch (error) {
       // Invalid token, redirect to login
       return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+  }
+  
+  // If accessing seller routes
+  if (isSellerRoute) {
+    console.log(`[Middleware] Seller route detected: ${request.nextUrl.pathname}`);
+    console.log(`[Middleware] Has token: ${!!token}`);
+    
+    // If no token, redirect to login
+    if (!token) {
+      console.log(`[Middleware] No token found, redirecting to login`);
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+    
+    try {
+      // Verify the token
+      const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+      
+      // Get role from user_type (backend field) or role field
+      const userType = payload.user_type || payload.role;
+      console.log(`[Middleware] Token verified, user_type: ${userType}, role: ${payload.role}`);
+      
+      // Normalize role to lowercase for comparison
+      const userRole = userType?.toLowerCase();
+      
+      // Check if user has seller or admin role (admin can also access seller routes)
+      if (userRole !== 'seller' && userRole !== 'admin') {
+        console.log(`[Middleware] User role ${userType} (normalized: ${userRole}) is not authorized for seller routes, redirecting to home`);
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      
+      console.log(`[Middleware] User authorized for seller route`);
+    } catch (error) {
+      // Invalid token, redirect to login
+      console.log(`[Middleware] Token verification failed:`, error);
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+  }
+  
+  // Check if accessing home page or user-only routes (profile, orders, cart, etc.)
+  const isHomePage = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '';
+  const isUserOnlyRoute = 
+    request.nextUrl.pathname.startsWith('/profile') ||
+    request.nextUrl.pathname.startsWith('/orders') ||
+    request.nextUrl.pathname.startsWith('/cart') ||
+    request.nextUrl.pathname.startsWith('/checkout') ||
+    request.nextUrl.pathname.startsWith('/payment') ||
+    request.nextUrl.pathname.startsWith('/my-orders') ||
+    request.nextUrl.pathname.startsWith('/products');
+  
+  // Block admin/seller from accessing home page and user-only routes
+  if ((isHomePage || isUserOnlyRoute) && token) {
+    try {
+      // Verify the token
+      const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+      
+      // Get role from user_type (backend field) or role field
+      const userType = payload.user_type || payload.role;
+      const userRole = userType?.toLowerCase();
+      
+      // If user is admin or seller, redirect to seller page
+      if (userRole === 'admin' || userRole === 'seller') {
+        console.log(`[Middleware] Admin/Seller (${userRole}) trying to access ${isHomePage ? 'home page' : 'user route'}, redirecting to /seller`);
+        return NextResponse.redirect(new URL('/seller', request.url));
+      }
+    } catch (error) {
+      // Invalid token, continue normally (will be handled by page-level auth)
+      console.log(`[Middleware] Token verification failed for user route:`, error);
     }
   }
   
@@ -90,15 +170,21 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/admin/:path*',
+    '/seller/:path*',
     '/profile/:path*',
+    '/orders/:path*',
+    '/my-orders/:path*',
+    '/cart/:path*',
+    '/checkout/:path*',
+    '/payment/:path*',
+    '/products/:path*',
     '/api/admin/:path*',
     '/api/user/:path*', 
     '/api/seller/:path*',
-    '/orders/:path*',
     '/api/cart/:path*',
     '/api/auth/:path*',
-    '/orders/:path*',
     '/payments/:path*',
   ]
 };

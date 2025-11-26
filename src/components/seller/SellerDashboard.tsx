@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Package, ShoppingCart, Menu, X } from 'lucide-react';
+import { Package, ShoppingCart, Menu, X, BarChart3, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function SellerDashboard({ children }: { children?: React.ReactNode }) {
@@ -11,7 +11,8 @@ export default function SellerDashboard({ children }: { children?: React.ReactNo
     const menuItems = [
         { id: 'inventory', label: 'Kho hàng', icon: Package, href: '/seller/inventory' },
         { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart, href: '/seller/orders' },
-        { id: 'account', label: 'Tài khoản bán hàng', icon: Package, href: '/seller/account' },
+        { id: 'statistics', label: 'Thống kê', icon: BarChart3, href: '/seller/statistics' },
+        { id: 'users', label: 'Quản lý người dùng', icon: Users, href: '/seller/users' },
     ];
 
     const handleMenuClick = (href: string) => {

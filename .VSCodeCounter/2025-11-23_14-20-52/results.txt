@@ -1,0 +1,283 @@
+Date : 2025-11-23 14:20:52
+Directory : c:\Users\dat\fe-e_commerce_app\src
+Total : 134 files,  18569 codes, 1190 comments, 2389 blanks, all 22148 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| TypeScript JSX |         83 |     14,262 |        785 |      1,554 |     16,601 |
+| TypeScript     |         49 |      4,163 |        393 |        808 |      5,364 |
+| PostCSS        |          2 |        144 |         12 |         27 |        183 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                           | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                              |        134 |     18,569 |      1,190 |      2,389 |     22,148 |
+| app                                                                                            |         80 |      7,684 |        577 |      1,133 |      9,394 |
+| app (Files)                                                                                    |          4 |        270 |         16 |         44 |        330 |
+| app\admin                                                                                      |          9 |        113 |          2 |         33 |        148 |
+| app\admin (Files)                                                                              |          1 |          9 |          0 |          3 |         12 |
+| app\admin\analytics                                                                            |          1 |          9 |          0 |          3 |         12 |
+| app\admin\customers                                                                            |          1 |          9 |          0 |          3 |         12 |
+| app\admin\orders                                                                               |          1 |          9 |          0 |          3 |         12 |
+| app\admin\products                                                                             |          4 |         68 |          2 |         18 |         88 |
+| app\admin\products (Files)                                                                     |          1 |          9 |          0 |          3 |         12 |
+| app\admin\products\[id]                                                                        |          2 |         43 |          2 |         12 |         57 |
+| app\admin\products\[id] (Files)                                                                |          1 |         18 |          0 |          6 |         24 |
+| app\admin\products\[id]\edit                                                                   |          1 |         25 |          2 |          6 |         33 |
+| app\admin\products\add                                                                         |          1 |         16 |          0 |          3 |         19 |
+| app\admin\settings                                                                             |          1 |          9 |          0 |          3 |         12 |
+| app\api                                                                                        |         42 |      3,034 |        254 |        588 |      3,876 |
+| app\api\admin                                                                                  |          4 |        358 |         22 |         37 |        417 |
+| app\api\admin\analytics                                                                        |          1 |        104 |          5 |          6 |        115 |
+| app\api\admin\customers                                                                        |          2 |        198 |         15 |         28 |        241 |
+| app\api\admin\customers (Files)                                                                |          1 |         85 |          6 |          9 |        100 |
+| app\api\admin\customers\[id]                                                                   |          1 |        113 |          9 |         19 |        141 |
+| app\api\admin\dashboard                                                                        |          1 |         56 |          2 |          3 |         61 |
+| app\api\auth                                                                                   |          4 |        318 |         24 |         36 |        378 |
+| app\api\auth\login                                                                             |          1 |        103 |          8 |         10 |        121 |
+| app\api\auth\logout                                                                            |          1 |         21 |          2 |          5 |         28 |
+| app\api\auth\refresh-token                                                                     |          1 |         85 |          7 |          9 |        101 |
+| app\api\auth\register                                                                          |          1 |        109 |          7 |         12 |        128 |
+| app\api\cart                                                                                   |          3 |        184 |          8 |         43 |        235 |
+| app\api\cart (Files)                                                                           |          1 |         74 |          2 |         16 |         92 |
+| app\api\cart\[id]                                                                              |          1 |         72 |          2 |         16 |         90 |
+| app\api\cart\add                                                                               |          1 |         38 |          4 |         11 |         53 |
+| app\api\cart\add\[product_id]                                                                  |          1 |         38 |          4 |         11 |         53 |
+| app\api\orders                                                                                 |          9 |        505 |         47 |        121 |        673 |
+| app\api\orders (Files)                                                                         |          1 |         46 |          4 |         12 |         62 |
+| app\api\orders\[id]                                                                            |          3 |        195 |         12 |         40 |        247 |
+| app\api\orders\[id] (Files)                                                                    |          1 |        110 |          8 |         20 |        138 |
+| app\api\orders\[id]\confirm-delivery                                                           |          1 |         42 |          2 |         10 |         54 |
+| app\api\orders\[id]\update-status                                                              |          1 |         43 |          2 |         10 |         55 |
+| app\api\orders\cancel                                                                          |          1 |         53 |          5 |         14 |         72 |
+| app\api\orders\cancel\[orderId]                                                                |          1 |         53 |          5 |         14 |         72 |
+| app\api\orders\cart                                                                            |          1 |         48 |          5 |         13 |         66 |
+| app\api\orders\create                                                                          |          1 |         65 |         11 |         16 |         92 |
+| app\api\orders\direct                                                                          |          1 |         48 |          5 |         13 |         66 |
+| app\api\orders\user                                                                            |          1 |         50 |          5 |         13 |         68 |
+| app\api\payment                                                                                |          2 |        149 |          7 |         25 |        181 |
+| app\api\payment\create-checkout-session                                                        |          1 |         90 |          4 |         14 |        108 |
+| app\api\payment\create-payment-intent                                                          |          1 |         59 |          3 |         11 |         73 |
+| app\api\product                                                                                |          1 |        118 |         15 |         23 |        156 |
+| app\api\product\review                                                                         |          1 |        118 |         15 |         23 |        156 |
+| app\api\product\review\[product_id]                                                            |          1 |        118 |         15 |         23 |        156 |
+| app\api\products                                                                               |          2 |        311 |         49 |         65 |        425 |
+| app\api\products (Files)                                                                       |          1 |        189 |         26 |         42 |        257 |
+| app\api\products\[id]                                                                          |          1 |        122 |         23 |         23 |        168 |
+| app\api\profile                                                                                |          1 |         31 |          0 |          8 |         39 |
+| app\api\proxy                                                                                  |          3 |        160 |         15 |         28 |        203 |
+| app\api\proxy\products                                                                         |          3 |        160 |         15 |         28 |        203 |
+| app\api\proxy\products\[id]                                                                    |          2 |         71 |          2 |         13 |         86 |
+| app\api\proxy\products\[id] (Files)                                                            |          1 |         50 |          2 |          8 |         60 |
+| app\api\proxy\products\[id]\reviews                                                            |          1 |         21 |          0 |          5 |         26 |
+| app\api\proxy\products\create-reviews                                                          |          1 |         89 |         13 |         15 |        117 |
+| app\api\proxy\products\create-reviews\[product_id]                                             |          1 |         89 |         13 |         15 |        117 |
+| app\api\seller                                                                                 |          3 |        244 |         15 |         61 |        320 |
+| app\api\seller\orders                                                                          |          1 |         59 |          6 |         14 |         79 |
+| app\api\seller\products                                                                        |          2 |        185 |          9 |         47 |        241 |
+| app\api\seller\products (Files)                                                                |          1 |         92 |          5 |         23 |        120 |
+| app\api\seller\products\[id]                                                                   |          1 |         93 |          4 |         24 |        121 |
+| app\api\upload                                                                                 |          3 |        147 |         13 |         35 |        195 |
+| app\api\upload\batch-presigned-url                                                             |          1 |         47 |          4 |         11 |         62 |
+| app\api\upload\file                                                                            |          1 |         50 |          5 |         12 |         67 |
+| app\api\upload\presigned-url                                                                   |          1 |         50 |          4 |         12 |         66 |
+| app\api\user                                                                                   |          3 |        226 |         16 |         59 |        301 |
+| app\api\user\addresses                                                                         |          2 |        185 |          9 |         47 |        241 |
+| app\api\user\addresses (Files)                                                                 |          1 |         92 |          5 |         23 |        120 |
+| app\api\user\addresses\[id]                                                                    |          1 |         93 |          4 |         24 |        121 |
+| app\api\user\users                                                                             |          1 |         41 |          7 |         12 |         60 |
+| app\api\users                                                                                  |          2 |        207 |         20 |         32 |        259 |
+| app\api\users (Files)                                                                          |          1 |         94 |         10 |         15 |        119 |
+| app\api\users\[id]                                                                             |          1 |        113 |         10 |         17 |        140 |
+| app\api\vendors                                                                                |          2 |         76 |          3 |         15 |         94 |
+| app\api\vendors (Files)                                                                        |          1 |         27 |          0 |          5 |         32 |
+| app\api\vendors\register                                                                       |          1 |         49 |          3 |         10 |         62 |
+| app\auth                                                                                       |          4 |        306 |          5 |         31 |        342 |
+| app\auth\forgot-password                                                                       |          1 |        152 |          1 |         14 |        167 |
+| app\auth\forgot-pasword                                                                        |          1 |        122 |          2 |         13 |        137 |
+| app\auth\login                                                                                 |          1 |         16 |          1 |          2 |         19 |
+| app\auth\register                                                                              |          1 |         16 |          1 |          2 |         19 |
+| app\cart                                                                                       |          1 |        216 |         12 |         24 |        252 |
+| app\checkout                                                                                   |          2 |        505 |         15 |         56 |        576 |
+| app\checkout (Files)                                                                           |          1 |        411 |         13 |         40 |        464 |
+| app\checkout\success                                                                           |          1 |         94 |          2 |         16 |        112 |
+| app\my-orders                                                                                  |          1 |        526 |         24 |         35 |        585 |
+| app\order                                                                                      |          1 |        413 |         21 |         50 |        484 |
+| app\payment                                                                                    |          2 |        135 |         11 |         22 |        168 |
+| app\payment (Files)                                                                            |          1 |         98 |          7 |         14 |        119 |
+| app\payment\success                                                                            |          1 |         37 |          4 |          8 |         49 |
+| app\products                                                                                   |          2 |        712 |         42 |         72 |        826 |
+| app\products (Files)                                                                           |          1 |        273 |         20 |         25 |        318 |
+| app\products\[id]                                                                              |          1 |        439 |         22 |         47 |        508 |
+| app\profile                                                                                    |          1 |         95 |        117 |         29 |        241 |
+| app\responsive-demo                                                                            |          1 |         38 |          1 |          4 |         43 |
+| app\seller                                                                                     |          7 |      1,023 |         44 |        110 |      1,177 |
+| app\seller (Files)                                                                             |          2 |         16 |          1 |          5 |         22 |
+| app\seller\account                                                                             |          1 |        289 |          4 |         32 |        325 |
+| app\seller\inventory                                                                           |          1 |          4 |          0 |          3 |          7 |
+| app\seller\orders                                                                              |          1 |        550 |         34 |         53 |        637 |
+| app\seller\products                                                                            |          1 |         75 |          4 |         12 |         91 |
+| app\seller\revenue                                                                             |          1 |         89 |          1 |          5 |         95 |
+| app\test-css                                                                                   |          1 |         74 |          5 |          7 |         86 |
+| app\test-upload                                                                                |          1 |         67 |          0 |         10 |         77 |
+| app\theme-demo                                                                                 |          1 |        157 |          8 |         18 |        183 |
+| components                                                                                     |         43 |      9,125 |        413 |        925 |     10,463 |
+| components (Files)                                                                             |          1 |        148 |          3 |         10 |        161 |
+| components\admin                                                                               |         11 |      4,432 |        157 |        354 |      4,943 |
+| components\auth                                                                                |          2 |        511 |         30 |         58 |        599 |
+| components\layout                                                                              |          2 |        358 |         24 |         30 |        412 |
+| components\payment                                                                             |          3 |        330 |         16 |         44 |        390 |
+| components\product                                                                             |          6 |        949 |         34 |        105 |      1,088 |
+| components\profile                                                                             |          3 |        605 |         31 |         58 |        694 |
+| components\seller                                                                              |          4 |        929 |         84 |        132 |      1,145 |
+| components\ui                                                                                  |         11 |        863 |         34 |        134 |      1,031 |
+| context                                                                                        |          4 |        631 |         61 |        111 |        803 |
+| hooks                                                                                          |          1 |        109 |         12 |         28 |        149 |
+| lib                                                                                            |          5 |        901 |        125 |        178 |      1,204 |
+| types                                                                                          |          1 |        119 |          2 |         14 |        135 |
++------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                                                       | language       | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\analytics\page.tsx                                | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\customers\page.tsx                                | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\orders\page.tsx                                   | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\page.tsx                                          | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\products\[id]\edit\page.tsx                       | TypeScript JSX |         25 |          2 |          6 |         33 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\products\[id]\page.tsx                            | TypeScript JSX |         18 |          0 |          6 |         24 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\products\add\page.tsx                             | TypeScript JSX |         16 |          0 |          3 |         19 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\products\page.tsx                                 | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\admin\settings\page.tsx                                 | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\admin\analytics\route.ts                            | TypeScript     |        104 |          5 |          6 |        115 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\admin\customers\[id]\route.ts                       | TypeScript     |        113 |          9 |         19 |        141 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\admin\customers\route.ts                            | TypeScript     |         85 |          6 |          9 |        100 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\admin\dashboard\route.ts                            | TypeScript     |         56 |          2 |          3 |         61 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\auth\login\route.ts                                 | TypeScript     |        103 |          8 |         10 |        121 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\auth\logout\route.ts                                | TypeScript     |         21 |          2 |          5 |         28 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\auth\refresh-token\route.ts                         | TypeScript     |         85 |          7 |          9 |        101 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\auth\register\route.ts                              | TypeScript     |        109 |          7 |         12 |        128 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\cart\[id]\route.ts                                  | TypeScript     |         72 |          2 |         16 |         90 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\cart\add\[product_id]\route.ts                      | TypeScript     |         38 |          4 |         11 |         53 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\cart\route.ts                                       | TypeScript     |         74 |          2 |         16 |         92 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\confirm-delivery\route.ts               | TypeScript     |         42 |          2 |         10 |         54 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\route.ts                                | TypeScript     |        110 |          8 |         20 |        138 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\[id]\update-status\route.ts                  | TypeScript     |         43 |          2 |         10 |         55 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\cancel\[orderId]\route.ts                    | TypeScript     |         53 |          5 |         14 |         72 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\cart\route.ts                                | TypeScript     |         48 |          5 |         13 |         66 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\create\route.ts                              | TypeScript     |         65 |         11 |         16 |         92 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\direct\route.ts                              | TypeScript     |         48 |          5 |         13 |         66 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\route.ts                                     | TypeScript     |         46 |          4 |         12 |         62 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\orders\user\route.ts                                | TypeScript     |         50 |          5 |         13 |         68 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\payment\create-checkout-session\route.ts            | TypeScript     |         90 |          4 |         14 |        108 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\payment\create-payment-intent\route.ts              | TypeScript     |         59 |          3 |         11 |         73 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\product\review\[product_id]\route.ts                | TypeScript     |        118 |         15 |         23 |        156 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\products\[id]\route.ts                              | TypeScript     |        122 |         23 |         23 |        168 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\products\route.ts                                   | TypeScript     |        189 |         26 |         42 |        257 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\profile\route.ts                                    | TypeScript     |         31 |          0 |          8 |         39 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\[id]\reviews\route.ts                | TypeScript     |         21 |          0 |          5 |         26 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\[id]\route.ts                        | TypeScript     |         50 |          2 |          8 |         60 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\proxy\products\create-reviews\[product_id]\route.ts | TypeScript     |         89 |         13 |         15 |        117 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\seller\orders\route.ts                              | TypeScript     |         59 |          6 |         14 |         79 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\seller\products\[id]\route.ts                       | TypeScript     |         93 |          4 |         24 |        121 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\seller\products\route.ts                            | TypeScript     |         92 |          5 |         23 |        120 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\upload\batch-presigned-url\route.ts                 | TypeScript     |         47 |          4 |         11 |         62 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\upload\file\route.ts                                | TypeScript     |         50 |          5 |         12 |         67 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\upload\presigned-url\route.ts                       | TypeScript     |         50 |          4 |         12 |         66 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\user\addresses\[id]\route.ts                        | TypeScript     |         93 |          4 |         24 |        121 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\user\addresses\route.ts                             | TypeScript     |         92 |          5 |         23 |        120 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\user\users\route.ts                                 | TypeScript     |         41 |          7 |         12 |         60 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\users\[id]\route.ts                                 | TypeScript     |        113 |         10 |         17 |        140 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\users\route.ts                                      | TypeScript     |         94 |         10 |         15 |        119 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\vendors\register\route.ts                           | TypeScript     |         49 |          3 |         10 |         62 |
+| c:\Users\dat\fe-e_commerce_app\src\app\api\vendors\route.ts                                    | TypeScript     |         27 |          0 |          5 |         32 |
+| c:\Users\dat\fe-e_commerce_app\src\app\auth\forgot-password\page.tsx                           | TypeScript JSX |        152 |          1 |         14 |        167 |
+| c:\Users\dat\fe-e_commerce_app\src\app\auth\forgot-pasword\page.tsx                            | TypeScript JSX |        122 |          2 |         13 |        137 |
+| c:\Users\dat\fe-e_commerce_app\src\app\auth\login\page.tsx                                     | TypeScript JSX |         16 |          1 |          2 |         19 |
+| c:\Users\dat\fe-e_commerce_app\src\app\auth\register\page.tsx                                  | TypeScript JSX |         16 |          1 |          2 |         19 |
+| c:\Users\dat\fe-e_commerce_app\src\app\cart\page.tsx                                           | TypeScript JSX |        216 |         12 |         24 |        252 |
+| c:\Users\dat\fe-e_commerce_app\src\app\checkout\page.tsx                                       | TypeScript JSX |        411 |         13 |         40 |        464 |
+| c:\Users\dat\fe-e_commerce_app\src\app\checkout\success\page.tsx                               | TypeScript JSX |         94 |          2 |         16 |        112 |
+| c:\Users\dat\fe-e_commerce_app\src\app\globals-old.css                                         | PostCSS        |         81 |          7 |         16 |        104 |
+| c:\Users\dat\fe-e_commerce_app\src\app\globals.css                                             | PostCSS        |         63 |          5 |         11 |         79 |
+| c:\Users\dat\fe-e_commerce_app\src\app\layout.tsx                                              | TypeScript JSX |         53 |          0 |          5 |         58 |
+| c:\Users\dat\fe-e_commerce_app\src\app\my-orders\page.tsx                                      | TypeScript JSX |        526 |         24 |         35 |        585 |
+| c:\Users\dat\fe-e_commerce_app\src\app\order\page.tsx                                          | TypeScript JSX |        413 |         21 |         50 |        484 |
+| c:\Users\dat\fe-e_commerce_app\src\app\page.tsx                                                | TypeScript JSX |         73 |          4 |         12 |         89 |
+| c:\Users\dat\fe-e_commerce_app\src\app\payment\page.tsx                                        | TypeScript JSX |         98 |          7 |         14 |        119 |
+| c:\Users\dat\fe-e_commerce_app\src\app\payment\success\page.tsx                                | TypeScript JSX |         37 |          4 |          8 |         49 |
+| c:\Users\dat\fe-e_commerce_app\src\app\products\[id]\page.tsx                                  | TypeScript JSX |        439 |         22 |         47 |        508 |
+| c:\Users\dat\fe-e_commerce_app\src\app\products\page.tsx                                       | TypeScript JSX |        273 |         20 |         25 |        318 |
+| c:\Users\dat\fe-e_commerce_app\src\app\profile\page.tsx                                        | TypeScript JSX |         95 |        117 |         29 |        241 |
+| c:\Users\dat\fe-e_commerce_app\src\app\responsive-demo\page.tsx                                | TypeScript JSX |         38 |          1 |          4 |         43 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\account\page.tsx                                 | TypeScript JSX |        289 |          4 |         32 |        325 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\inventory\page.tsx                               | TypeScript JSX |          4 |          0 |          3 |          7 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\layout.tsx                                       | TypeScript JSX |         12 |          0 |          3 |         15 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\orders\page.tsx                                  | TypeScript JSX |        550 |         34 |         53 |        637 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\page.tsx                                         | TypeScript JSX |          4 |          1 |          2 |          7 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\products\page.tsx                                | TypeScript JSX |         75 |          4 |         12 |         91 |
+| c:\Users\dat\fe-e_commerce_app\src\app\seller\revenue\page.tsx                                 | TypeScript JSX |         89 |          1 |          5 |         95 |
+| c:\Users\dat\fe-e_commerce_app\src\app\test-css\page.tsx                                       | TypeScript JSX |         74 |          5 |          7 |         86 |
+| c:\Users\dat\fe-e_commerce_app\src\app\test-upload\page.tsx                                    | TypeScript JSX |         67 |          0 |         10 |         77 |
+| c:\Users\dat\fe-e_commerce_app\src\app\theme-demo\page.tsx                                     | TypeScript JSX |        157 |          8 |         18 |        183 |
+| c:\Users\dat\fe-e_commerce_app\src\components\SearchDropdown.tsx                               | TypeScript JSX |        148 |          3 |         10 |        161 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\AdminDashboard.tsx                         | TypeScript JSX |        393 |          8 |         22 |        423 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\AdminSettings.tsx                          | TypeScript JSX |        621 |         24 |         60 |        705 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\AnalyticsManagement.tsx                    | TypeScript JSX |        301 |         10 |         23 |        334 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement.tsx                     | TypeScript JSX |        379 |         14 |         28 |        421 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_clean.tsx               | TypeScript JSX |        316 |         16 |         21 |        353 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_new.tsx                 | TypeScript JSX |        421 |         21 |         41 |        483 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\CustomerManagement_simple.tsx              | TypeScript JSX |        256 |         14 |         16 |        286 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\OrderManagement.tsx                        | TypeScript JSX |        456 |         11 |         29 |        496 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductDetail.tsx                          | TypeScript JSX |        387 |         16 |         41 |        444 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductForm.tsx                            | TypeScript JSX |        564 |         12 |         54 |        630 |
+| c:\Users\dat\fe-e_commerce_app\src\components\admin\ProductManagement.tsx                      | TypeScript JSX |        338 |         11 |         19 |        368 |
+| c:\Users\dat\fe-e_commerce_app\src\components\auth\LoginForm.tsx                               | TypeScript JSX |        214 |         17 |         30 |        261 |
+| c:\Users\dat\fe-e_commerce_app\src\components\auth\RegisterForm.tsx                            | TypeScript JSX |        297 |         13 |         28 |        338 |
+| c:\Users\dat\fe-e_commerce_app\src\components\layout\Footer.tsx                                | TypeScript JSX |        148 |          6 |          8 |        162 |
+| c:\Users\dat\fe-e_commerce_app\src\components\layout\Header.tsx                                | TypeScript JSX |        210 |         18 |         22 |        250 |
+| c:\Users\dat\fe-e_commerce_app\src\components\payment\StripeCheckout.tsx                       | TypeScript JSX |        104 |          7 |         15 |        126 |
+| c:\Users\dat\fe-e_commerce_app\src\components\payment\StripePaymentModal.tsx                   | TypeScript JSX |        209 |          9 |         24 |        242 |
+| c:\Users\dat\fe-e_commerce_app\src\components\payment\StripeProvider.tsx                       | TypeScript JSX |         17 |          0 |          5 |         22 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\AddToCartButton.tsx                      | TypeScript JSX |        198 |          6 |         18 |        222 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\ProductActions.tsx                       | TypeScript JSX |         38 |          2 |          6 |         46 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\ProductCard.tsx                          | TypeScript JSX |        184 |          1 |         17 |        202 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\ProductImageGallery.tsx                  | TypeScript JSX |         83 |          7 |         13 |        103 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\ProductReviews.tsx                       | TypeScript JSX |        369 |         15 |         38 |        422 |
+| c:\Users\dat\fe-e_commerce_app\src\components\product\RelatedProducts.tsx                      | TypeScript JSX |         77 |          3 |         13 |         93 |
+| c:\Users\dat\fe-e_commerce_app\src\components\profile\AddressManagementPage.tsx                | TypeScript JSX |        307 |         13 |         24 |        344 |
+| c:\Users\dat\fe-e_commerce_app\src\components\profile\ProfileDetails.tsx                       | TypeScript JSX |        246 |         18 |         29 |        293 |
+| c:\Users\dat\fe-e_commerce_app\src\components\profile\ProfileSidebar.tsx                       | TypeScript JSX |         52 |          0 |          5 |         57 |
+| c:\Users\dat\fe-e_commerce_app\src\components\seller\InventoryManagement.tsx                   | TypeScript JSX |        776 |         74 |        107 |        957 |
+| c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerDashboard.tsx                       | TypeScript JSX |        118 |         10 |         18 |        146 |
+| c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerDashboardWrapper.tsx                | TypeScript JSX |          9 |          0 |          3 |         12 |
+| c:\Users\dat\fe-e_commerce_app\src\components\seller\SellerRevenueChart.tsx                    | TypeScript JSX |         26 |          0 |          4 |         30 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\Button.tsx                                    | TypeScript JSX |         34 |          0 |          6 |         40 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\Card.tsx                                      | TypeScript JSX |         33 |          0 |          6 |         39 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ImageUploader.tsx                             | TypeScript JSX |        188 |         12 |         42 |        242 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\Modal.tsx                                     | TypeScript JSX |         59 |          1 |          8 |         68 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ResponsiveDemo.tsx                            | TypeScript JSX |         90 |          6 |         11 |        107 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\SmoothLink.tsx                                | TypeScript JSX |         49 |          7 |          8 |         64 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeStatus.tsx                               | TypeScript JSX |         84 |          1 |         12 |         97 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeTester.tsx                               | TypeScript JSX |        103 |          2 |         14 |        119 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeToggle.tsx                               | TypeScript JSX |        100 |          3 |         12 |        115 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\ThemeToggleButton.tsx                         | TypeScript JSX |         32 |          1 |          6 |         39 |
+| c:\Users\dat\fe-e_commerce_app\src\components\ui\Toast.tsx                                     | TypeScript JSX |         91 |          1 |          9 |        101 |
+| c:\Users\dat\fe-e_commerce_app\src\context\AuthContext.tsx                                     | TypeScript JSX |        168 |         27 |         31 |        226 |
+| c:\Users\dat\fe-e_commerce_app\src\context\CartContext.tsx                                     | TypeScript JSX |        264 |         27 |         41 |        332 |
+| c:\Users\dat\fe-e_commerce_app\src\context\ThemeContext.tsx                                    | TypeScript JSX |         77 |          5 |         15 |         97 |
+| c:\Users\dat\fe-e_commerce_app\src\context\ToastContext.tsx                                    | TypeScript JSX |        122 |          2 |         24 |        148 |
+| c:\Users\dat\fe-e_commerce_app\src\hooks\useApi.ts                                             | TypeScript     |        109 |         12 |         28 |        149 |
+| c:\Users\dat\fe-e_commerce_app\src\lib\api.ts                                                  | TypeScript     |        597 |         97 |        112 |        806 |
+| c:\Users\dat\fe-e_commerce_app\src\lib\apiClient.ts                                            | TypeScript     |         90 |          3 |         16 |        109 |
+| c:\Users\dat\fe-e_commerce_app\src\lib\imageUtils.ts                                           | TypeScript     |        139 |         24 |         36 |        199 |
+| c:\Users\dat\fe-e_commerce_app\src\lib\stripe.ts                                               | TypeScript     |         43 |          1 |          8 |         52 |
+| c:\Users\dat\fe-e_commerce_app\src\lib\utils.ts                                                | TypeScript     |         32 |          0 |          6 |         38 |
+| c:\Users\dat\fe-e_commerce_app\src\types\index.ts                                              | TypeScript     |        119 |          2 |         14 |        135 |
+| Total                                                                                          |                |     18,569 |      1,190 |      2,389 |     22,148 |
++------------------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
