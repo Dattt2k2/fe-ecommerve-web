@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
 
-// GET /api/orders/statistics - Get order statistics
 export async function GET(request: NextRequest) {
   try {
-    // Get Authorization header or token from Cookie
     let authHeader = request.headers.get('authorization');
     const cookieHeader = request.headers.get('cookie');
 
-    // If no Authorization header, try to extract token from cookie
     if (!authHeader && cookieHeader) {
       const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
       if (tokenMatch) {
@@ -21,7 +18,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
     }
 
-    console.log('[API /orders/statistics] Proxying GET request to backend:', `${BACKEND_URL}/orders/statistics`);
 
     const forwardHeaders: Record<string, string> = {
       'Accept': request.headers.get('accept') || 'application/json',
@@ -33,22 +29,19 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month');
     const year = searchParams.get('year');
     
-    let backendUrl = `${BACKEND_URL}/orders/statistics`;
+    let backendUrl = `${BACKEND_URL}/admin/statistics/users`;
     const queryParams = new URLSearchParams();
     if (month) queryParams.append('month', month);
     if (year) queryParams.append('year', year);
     if (queryParams.toString()) {
       backendUrl += `?${queryParams.toString()}`;
     }
-    
-    console.log('[API /orders/statistics] Proxying GET request to backend:', backendUrl);
 
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: forwardHeaders,
     });
 
-    console.log('[API /orders/statistics] Backend response status:', response.status);
 
     const text = await response.text();
     let data: any = null;
@@ -65,10 +58,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[API /orders/statistics] Statistics fetched successfully');
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
-    console.error('[API /orders/statistics] Error:', error);
     return NextResponse.json({ error: 'Failed to fetch statistics' }, { status: 500 });
   }
 }

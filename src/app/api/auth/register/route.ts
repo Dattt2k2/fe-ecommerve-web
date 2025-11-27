@@ -6,10 +6,15 @@ export async function POST(request: NextRequest) {
   try {
     // Get the input data
     const data = await request.json();
-    const { email, password, phone, name, confirmPassword } = data;
+    console.log('[API /auth/register] Received data:', data);
+    const { email, password, phone, first_name, name, confirmPassword } = data;
+    
+    // Sử dụng first_name nếu có, nếu không thì dùng name (tương thích ngược)
+    const userName = first_name || name;
+    console.log('[API /auth/register] Using name field:', userName);
 
     // Validate input
-    if (!email || !password || !name || !phone) {
+    if (!email || !password || !userName || !phone) {
       return NextResponse.json(
         { error: 'Tất cả các trường là bắt buộc' },
         {
@@ -23,7 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password !== confirmPassword) {
+    // Chỉ kiểm tra confirmPassword nếu có gửi lên
+    if (confirmPassword && password !== confirmPassword) {
       return NextResponse.json(
         { error: 'Mật khẩu xác nhận không khớp' },
         {
@@ -52,13 +58,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the backend API
+    const backendPayload = { email, password, phone, first_name: userName };
+    console.log('[API /auth/register] Sending to backend:', backendPayload);
+    
     const backendResponse = await fetch(`${BACKEND_URL}/auth/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': '/*',
       },
-      body: JSON.stringify({ email, password, phone, name }),
+      body: JSON.stringify(backendPayload),
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
     });

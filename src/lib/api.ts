@@ -15,7 +15,7 @@ export const API_ENDPOINTS = {
   AUTH: {
     // Always target the gateway `/api` routes so frontend calls go to the API gateway
     LOGIN: '/auth/users/login',
-    REGISTER: '/auth/users/register',
+    REGISTER: '/api/auth/register', 
     LOGOUT: '/auth/users/logout',
     REFRESH: '/auth/refresh-token',
     // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /users/:id)
@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     DETAIL: () => USE_INTERNAL_API ? `/me` : `/me`,
     UPDATE: () => USE_INTERNAL_API ? `/me` : `/me`,
     DELETE: () => USE_INTERNAL_API ? `/me` : `/me`,
+    STATISTICS: '/api/users/statistic', 
   },
   ADDRESS: {
     LIST: USE_INTERNAL_API ? '/me/addresses' : '/me/addresses',
@@ -123,6 +124,16 @@ class ApiClient {
     console.log('[ApiClient] Request URL:', url);
     console.log('[ApiClient] Endpoint:', endpoint);
     console.log('[ApiClient] Is Internal Route:', isInternalRoute);
+    
+    // Log request body for register endpoint
+    if (endpoint.includes('register') && options.body) {
+      try {
+        const bodyData = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+        console.log('[ApiClient] Register request body:', bodyData);
+      } catch (e) {
+        console.log('[ApiClient] Register request body (raw):', options.body);
+      }
+    }
     
     // Get token from localStorage or cookies (only in browser)
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
@@ -202,10 +213,8 @@ class ApiClient {
       
       // Handle authentication errors (401)
       if (response.status === 401) {
-        // Don't trigger handleAuthError on login/register endpoints, review GET requests, or public endpoints
         const isLoginEndpoint = url.includes('/login') || url.includes('/register');
         const isReviewGetRequest = url.includes('/review/') && config.method === 'GET';
-        // Public endpoints that don't require authentication (categories, products listing, etc.)
         const isPublicEndpoint = url.includes('/api/products/get/category') || url.includes('/api/products/category') || 
                                  (url.includes('/api/products') && config.method === 'GET' && !url.includes('/seller'));
         
@@ -236,7 +245,6 @@ class ApiClient {
             throw new Error(JSON.stringify(errPayload));
           }
         } else {
-          // For login/register endpoints or review GET, just throw error without redirecting
           const errorData = await response.json().catch(() => ({}));
           const errPayload = { status: response.status, url, data: errorData };
           throw new Error(JSON.stringify(errPayload));
@@ -362,6 +370,9 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    if (endpoint.includes('register')) {
+      console.log('[ApiClient.post] Register endpoint, data being sent:', data);
+    }
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
@@ -489,7 +500,7 @@ export const authAPI = {
     });
   },
   
-  register: (userData: { email: string; password: string; name: string; confirmPassword?: string }): Promise<RegisterResponse> => 
+  register: (userData: { email: string; password: string; first_name: string; confirmPassword?: string }): Promise<RegisterResponse> => 
     apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData, {
       headers: {
         'Content-Type': 'application/json',
@@ -628,7 +639,7 @@ export const productsAPI = {
     apiClient.delete(API_ENDPOINTS.PRODUCTS.CATEGORY_DELETE(id)),
   
   // Get product statistics
-  getStatistics: (): Promise<{
+  getStatistics: (month?: number, year?: number): Promise<{
     data: {
       growth_percentage: number;
       previous_total_products: number;
@@ -640,7 +651,13 @@ export const productsAPI = {
       } | null>;
       total_products: number;
     };
-  }> => apiClient.get(API_ENDPOINTS.PRODUCTS.STATISTICS),
+  }> => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const queryString = params.toString();
+    return apiClient.get(`${API_ENDPOINTS.PRODUCTS.STATISTICS}${queryString ? `?${queryString}` : ''}`);
+  },
 
   searchAdvanced: async (params?: Record<string, any>): Promise<{ products: Product[]; pagination: any }> => {
     const queryString = params ? `?${new URLSearchParams(
@@ -754,7 +771,7 @@ export const ordersAPI = {
     apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(orderId), {}),
   
   // Get order statistics
-  getStatistics: (): Promise<{
+  getStatistics: (month?: number, year?: number): Promise<{
     month: number;
     year: number;
     total_orders: number;
@@ -763,10 +780,22 @@ export const ordersAPI = {
     revenue_growth: number;
     previous_orders: number;
     previous_revenue: number;
-  }> => 
-    apiClient.get(API_ENDPOINTS.ORDERS.STATISTICS),
+    top_products?: Array<{
+      product_id: string;
+      name: string;
+      total_quantity: number;
+      total_revenue: number;
+      total_orders: number;
+    }>;
+  }> => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const queryString = params.toString();
+    return apiClient.get(`${API_ENDPOINTS.ORDERS.STATISTICS}${queryString ? `?${queryString}` : ''}`);
+  },
 
-    getUserOrdersCount: (userId: string): Promise<{ orders_count: number; total_amount: number }> => 
+    getUserOrdersCount: (userId: string): Promise<{ shipped_order_count: number; total_price: number }> => 
       apiClient.post(API_ENDPOINTS.ORDERS.USER_ORDER_COUNT(userId), {}),
 };
 
@@ -809,6 +838,17 @@ export const usersAPI = {
   
   deleteUser: (id: string): Promise<{ message: string }> => 
     apiClient.delete(API_ENDPOINTS.USERS.DELETE()),
+
+  getUserStatistics: (month?: number, year?: number): Promise<{
+    current_month_users: number;
+    growth_percentage: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const queryString = params.toString();
+    return apiClient.get(`${API_ENDPOINTS.USERS.STATISTICS}${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const adminAPI = {

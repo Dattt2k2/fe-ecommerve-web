@@ -194,7 +194,6 @@ export default function InventoryManagement() {
       // Extract processed files
       const processedFiles = results.map(result => result.file);
       
-      // Show processing summary
       const totalSavings = results.reduce((sum, result) => sum + (result.originalSize - result.compressedSize), 0);
       if (totalSavings > 0) {
       }
@@ -278,9 +277,7 @@ export default function InventoryManagement() {
     try {
       setUploadingImages(true);
       
-  // Upload selected images and get S3 keys only
-  // formData.images may contain full URLs (for display) or plain S3 keys.
-  // Normalize to pure S3 keys before sending to backend.
+
   let imageKeys: string[] = (formData.images || []).map((img: string) => extractS3Key(img));
       
       if (selectedFiles.length > 0) {
@@ -698,8 +695,8 @@ export default function InventoryManagement() {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                        product.status === 'onsale' ? 'bg-green-500/20 text-green-400' :
-                        product.status === 'offsale' ? 'bg-gray-500/20 text-gray-400' :
+                        product.status === 'onsale' ? 'bg-green-500/20 text-green-400 text-center' :
+                        product.status === 'offsale' ? 'bg-gray-500/20 text-gray-400 text-center' :
                         'bg-red-500/20 text-red-400'
                       }`}>
                         {product.status === 'onsale' ? 'Đang bán' :
@@ -884,7 +881,7 @@ export default function InventoryManagement() {
                     </select>
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Trạng thái
                     </label>
@@ -897,7 +894,7 @@ export default function InventoryManagement() {
                       <option value="offsale">Ngừng bán</option>
                       <option value="unavailable">Không khả dụng</option>
                     </select>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Images */}

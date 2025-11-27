@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import SellerRevenueChart from '@/components/seller/SellerRevenueChart';
 import { TrendingUp, ShoppingBag, Package, Users, DollarSign, ArrowUp, ArrowDown } from 'lucide-react';
-import { ordersAPI, productsAPI } from '@/lib/api';
+import { ordersAPI, productsAPI, usersAPI } from '@/lib/api';
 
 export default function SellerStatisticsPage() {
 	// State cho dữ liệu từ API
@@ -17,16 +17,16 @@ export default function SellerStatisticsPage() {
 	const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 	const [previousRevenue, setPreviousRevenue] = useState(0);
 
-	// State cho product statistics
 	const [totalProducts, setTotalProducts] = useState(0);
 	const [productsChange, setProductsChange] = useState(0);
 	const [topProducts, setTopProducts] = useState<Array<{ name: string; sold: number; revenue: number }>>([]);
 
-	// State cho customer statistics (chưa có API)
 	const [totalCustomers, setTotalCustomers] = useState(0);
 	const [customersChange, setCustomersChange] = useState(0);
 
-	// Fetch statistics from API
+	const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+	const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+
 	useEffect(() => {
 		const fetchStatistics = async () => {
 			try {
@@ -35,8 +35,7 @@ export default function SellerStatisticsPage() {
 				console.log('[SellerStatistics] Fetching statistics...');
 				
 				// Fetch orders statistics
-				const ordersStats = await ordersAPI.getStatistics();
-				console.log('[SellerStatistics] Orders statistics received:', ordersStats);
+				const ordersStats = await ordersAPI.getStatistics(selectedMonth, selectedYear);
 				
 				// Cập nhật dữ liệu từ orders API
 				setTotalRevenue(ordersStats.total_revenue || 0);
@@ -47,33 +46,40 @@ export default function SellerStatisticsPage() {
 				setCurrentYear(ordersStats.year || new Date().getFullYear());
 				setPreviousRevenue(ordersStats.previous_revenue || 0);
 				
-				// Fetch products statistics
+				if (ordersStats.top_products && ordersStats.top_products.length > 0) {
+					const topSelling = ordersStats.top_products.
+					filter(p => p.name !== null).
+					map(p => ({
+						name: p.name,
+						sold: p.total_quantity || 0,
+						revenue: p.total_revenue || 0
+					}))
+					setTopProducts(topSelling);
+				} else {
+					setTopProducts([]);
+				}
+				
 				try {
-					const productsStats = await productsAPI.getStatistics();
+					const productsStats = await productsAPI.getStatistics(selectedMonth, selectedYear);
 					console.log('[SellerStatistics] Products statistics received:', productsStats);
 					
 					if (productsStats.data) {
-						// Cập nhật tổng số sản phẩm
 						setTotalProducts(productsStats.data.total_products || 0);
 						setProductsChange(productsStats.data.growth_percentage || 0);
 						
-						// Cập nhật top selling products
-						const topSelling = productsStats.data.top_selling_products
-							.filter((p): p is { name: string; price: number; product_id: string; sold_count: number } => p !== null)
-							.map(p => ({
-								name: p.name,
-								sold: p.sold_count || 0,
-								revenue: (p.price || 0) * (p.sold_count || 0)
-							}))
-							.sort((a, b) => b.sold - a.sold)
-							.slice(0, 5); // Lấy top 5
-						
-						if (topSelling.length > 0) {
-							setTopProducts(topSelling);
-						}
 					}
+					
 				} catch (productErr: any) {
 					console.error('[SellerStatistics] Failed to fetch product statistics:', productErr);
+				}
+
+				try {
+					const usersStats = await usersAPI.getUserStatistics(selectedMonth, selectedYear);
+					console.log('[SellerStatistics] Users statistics received:', usersStats);
+					setTotalCustomers(usersStats.current_month_users || 0);
+					setCustomersChange(usersStats.growth_percentage || 0);
+				} catch (usersErr: any) {
+					console.error('[SellerStatistics] Failed to fetch users statistics:', usersErr);
 				}
 			} catch (err: any) {
 				console.error('[SellerStatistics] Failed to fetch statistics:', err);
@@ -84,8 +90,12 @@ export default function SellerStatisticsPage() {
 		};
 
 		fetchStatistics();
-	}, []);
+	}, [selectedYear, selectedMonth]);
 
+	const months = Array.from({ length: 12 }, (_, i) => i + 1);
+	const currentYearValue = new Date().getFullYear();
+	const years = Array.from({ length: 5 }, (_, i) => currentYearValue - i);
+	
 	const stats = [
 		{
 			title: 'Tổng doanh thu',
@@ -117,6 +127,11 @@ export default function SellerStatisticsPage() {
 		},
 	];
 
+	const monthNames = [
+		'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+		'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+	];
+
 	return (
 		<div className="max-w-7xl mx-auto">
 			<div className="mb-6">
@@ -127,6 +142,58 @@ export default function SellerStatisticsPage() {
 						<p className="text-sm text-red-600 dark:text-red-400">{error}</p>
 					</div>
 				)}
+			</div>
+
+			<div className="mb-6">
+				<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2">
+						<label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tháng:</label>
+						<select
+							value={selectedMonth ?? ''}
+							onChange={(e) => {
+								const value = e.target.value;
+								if (value) {
+									setSelectedMonth(parseInt(value));
+								} else {
+									setSelectedMonth(0);
+								}
+							}}
+							className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+						>
+							<option value="">Tất cả các tháng</option>
+							{monthNames.map((month, idx) => (
+								<option key={idx + 1} value={idx + 1}>
+									{month}
+								</option>
+							))}
+						</select>
+					</div>
+					<div className="flex items-center gap-2">
+						<label className="text-sm font-medium text-gray-700 dark:text-gray-300">Năm:</label>
+						<select
+							value={selectedYear ?? ''}
+							onChange={(e) => {
+								const value = e.target.value;
+								if (value) {
+									setSelectedYear(parseInt(value));
+								}
+							}}
+							className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+						>
+							<option value="">Tất cả các năm</option>
+							{/* Add year options here */}
+						</select>
+					</div>
+					<button
+						onClick={() => {
+							setSelectedMonth(new Date().getMonth() + 1);
+							setSelectedYear(new Date().getFullYear());
+						}}
+						className="px-4 py-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white rounded-lg font-medium transition-colors"
+					>
+						Đặt lại
+					</button>
+				</div>
 			</div>
 
 			{/* Stats Cards */}
@@ -156,9 +223,9 @@ export default function SellerStatisticsPage() {
 									<div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
 									<div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-100' : 'text-red-100'}`}>
 										{isPositive ? (
-											<ArrowUp className="w-3 h-3" />
+											<ArrowUp className="w-10 h-10" />
 										) : (
-											<ArrowDown className="w-3 h-3" />
+											<ArrowDown className="w-10 h-10" />
 										)}
 										<span>{Math.abs(stat.change)}% so với tháng trước</span>
 									</div>

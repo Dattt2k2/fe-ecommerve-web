@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.API_URL || 'http://api.example.com';
 
-// GET /api/products/statistics - Get product statistics
 export async function GET(request: NextRequest) {
   try {
-    // Get Authorization header or token from Cookie
     let authHeader = request.headers.get('authorization');
     const cookieHeader = request.headers.get('cookie');
 
-    // If no Authorization header, try to extract token from cookie
     if (!authHeader && cookieHeader) {
       const tokenMatch = cookieHeader.match(/auth-token=([^;]+)/);
       if (tokenMatch) {
@@ -22,14 +19,27 @@ export async function GET(request: NextRequest) {
     }
 
 
-    // Build headers for backend request
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get('month');
+    const year = searchParams.get('year');
+    
+    let backendUrl = `${BACKEND_URL}/products/statistics`;
+    const queryParams = new URLSearchParams();
+    if (month) queryParams.append('month', month);
+    if (year) queryParams.append('year', year);
+    if (queryParams.toString()) {
+      backendUrl += `?${queryParams.toString()}`;
+    }
+    
+    console.log('[API /products/statistics] Proxying GET request to backend:', backendUrl);
+
     const forwardHeaders: Record<string, string> = {
       'Accept': request.headers.get('accept') || 'application/json',
       'Content-Type': 'application/json',
       'Authorization': authHeader,
     };
 
-    const response = await fetch(`${BACKEND_URL}/products/statistics`, {
+    const response = await fetch(backendUrl, {
       method: 'GET',
       headers: forwardHeaders,
     });

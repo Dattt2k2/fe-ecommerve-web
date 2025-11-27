@@ -12,7 +12,7 @@ export default function RegisterForm() {
   const router = useRouter();
   
   const [formData, setFormData] = useState({
-    name: '',
+    first_name: '',
     email: '',
     phone: '',
     password: '',
@@ -43,9 +43,9 @@ export default function RegisterForm() {
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
     
-    if (!formData.name.trim()) {
+    if (!formData.first_name.trim()) {
       newErrors.name = 'Họ tên là bắt buộc';
-    } else if (formData.name.trim().length < 2) {
+    } else if (formData.first_name.trim().length < 2) {
       newErrors.name = 'Họ tên phải có ít nhất 2 ký tự';
     }
     
@@ -91,12 +91,16 @@ export default function RegisterForm() {
     setSubmitError('');
     
     try {
-      await register({
-        name: formData.name,
+      const registerData = {
+        first_name: formData.first_name,
         email: formData.email,
         phone: formData.phone,
-        password: formData.password
-      });
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      };
+      console.log('[RegisterForm] Sending register data:', registerData);
+      console.log('[RegisterForm] formData.first_name:', formData.first_name);
+      await register(registerData);
       // Redirect to dashboard or previous page
       router.push('/');
     } catch (error: any) {
@@ -131,18 +135,18 @@ export default function RegisterForm() {
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
               <input
                 type="text"
-                id="name"
-                name="name"
-                value={formData.name}
+                id="first_name"
+                name="first_name"
+                value={formData.first_name}
                 onChange={handleChange}
                 className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
-                  errors.name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+                  errors.first_name ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="Nhập họ và tên"
               />
             </div>
-            {errors.name && (
-              <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.name}</p>
+            {errors.first_name && (
+              <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.first_name}</p>
             )}
           </div>
 

@@ -15,6 +15,21 @@ const monthNames = [
   'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
 ];
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-300 dark:border-gray-600 rounded shadow-lg">
+        <p className="font-semibold text-gray-900 dark:text-white mb-2">{label}</p>
+        <p className="text-blue-600 dark:text-blue-400">
+          <span className="font-medium">Doanh thu: </span>
+          <span className="font-bold">{payload[0].value.toLocaleString('vi-VN')}₫</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function SellerRevenueChart({ 
   currentRevenue,
   previousRevenue,
@@ -35,34 +50,28 @@ export default function SellerRevenueChart({
       const year = date.getFullYear();
       const monthName = monthNames[month - 1];
       
-      // Tháng hiện tại - dùng dữ liệu từ API
       if (month === currentMonth && year === currentYear) {
         data.push({
           month: monthName,
           revenue: currentRevenue || 0
         });
       }
-      // Tháng trước - dùng previous_revenue từ API
       else if (i === 5 && previousRevenue > 0) {
         data.push({
           month: monthName,
           revenue: previousRevenue
         });
       }
-      // Các tháng khác - ước tính dựa trên xu hướng hoặc để 0
       else {
-        // Nếu có cả previous và current, tính xu hướng
         if (previousRevenue > 0 && currentRevenue > 0) {
           const growthRate = (currentRevenue - previousRevenue) / previousRevenue;
           const monthsAgo = 5 - i;
-          // Ước tính dựa trên xu hướng tăng trưởng
           const estimatedRevenue = previousRevenue * Math.pow(1 + growthRate, monthsAgo / 5);
           data.push({
             month: monthName,
             revenue: Math.max(0, estimatedRevenue)
           });
         } else {
-          // Nếu không có dữ liệu, để 0
           data.push({
             month: monthName,
             revenue: 0
@@ -84,7 +93,7 @@ export default function SellerRevenueChart({
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" />
           <YAxis />
-          <Tooltip formatter={(value: number) => value.toLocaleString('vi-VN') + '₫'} />
+          <Tooltip content={<CustomTooltip />} />
           <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
