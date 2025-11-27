@@ -61,7 +61,6 @@ export function useProduct(id: string) {
 
 export function useAdvancedSearch(params?: any) {
   const memoizedParams = useMemo(() => params, [JSON.stringify(params)]);
-  // Skip API call if params is null
   const shouldSkip = memoizedParams === null;
   
   const paramsKey = useMemo(() => {
@@ -87,6 +86,14 @@ export function useProductCategories() {
 
 export function useCategoryList() {
   return useApi(() => productsAPI.getCategoryList(), []);
+}
+
+export function useBestSeller() {
+  console.log('useBestSeller');
+  return useApi(() => {
+    console.log('useBestSeller API call');
+    return productsAPI.getBestSeller();
+  }, []);
 }
 
 // Orders hooks
@@ -183,6 +190,12 @@ export function useUpdateOrder() {
   );
 }
 
+export function useUserOrderCount() {
+  return useMutation((userId: string) =>
+    ordersAPI.getUserOrdersCount(userId)
+  );
+}
+
 // User mutations
 export function useUpdateUser() {
   return useMutation(({ id, data }: { id: string; data: any }) => 
@@ -193,3 +206,4 @@ export function useUpdateUser() {
 export function useDeleteUser() {
   return useMutation((id: string) => usersAPI.deleteUser(id));
 }
+

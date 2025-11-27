@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, Search, Mail, Phone, Calendar, ShoppingBag, Eye, Ban, CheckCircle, XCircle, MoreVertical, Trash2, AlertTriangle } from 'lucide-react';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, ordersAPI } from '@/lib/api';
 
 interface UserData {
   id: string;
@@ -26,6 +26,11 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
+  const [userOrderCount, setUserOrderCount] = useState<{
+    userId: string;
+    shipped_order_count: number;
+    total_price: number;
+  } | null>(null);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,6 +47,20 @@ export default function UserManagement() {
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const handleViewUserOrders = async (userId: string) => {
+    try {
+      const result = await ordersAPI.getUserOrdersCount(userId);
+      setUserOrderCount({
+        userId,
+        shipped_order_count: result.shipped_order_count || 0,
+        total_price: result.total_price || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching user order count:', error);
+      setUserOrderCount(null);
+    }
+  }
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -56,7 +75,7 @@ export default function UserManagement() {
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      const response = await apiClient.get(`/api/admin/users?${params.toString()}`);
+      const response = await apiClient.get(`/api/admin/users?${params.toString()}`) as any;
       
       if (response) {
         const usersArray = response.users || response.data || [];
@@ -214,6 +233,7 @@ export default function UserManagement() {
     setIsModalOpen(false);
     setSelectedUser(null);
     setUserDetails(null);
+    setUserOrderCount(null);
   };
 
   const updateUserStatus = async (userId: string, currentStatus: 'active' | 'inactive') => {
@@ -530,6 +550,7 @@ export default function UserManagement() {
             >
               <button
                 onClick={() => {
+                  handleViewUserOrders(user.id);
                   handleViewUser(user);
                   setOpenMenuId(null);
                   setMenuPosition(null);
@@ -743,7 +764,11 @@ export default function UserManagement() {
                         </label>
                         <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                           <ShoppingBag className="w-4 h-4 text-gray-400" />
-                          <span>{userDetails?.total_orders || userDetails?.orders_count || selectedUser?.totalOrders || 0}</span>
+                          <span>
+                            {userOrderCount && userOrderCount.userId === selectedUser?.id
+                              ? userOrderCount.shipped_order_count
+                              : userDetails?.total_orders || userDetails?.orders_count || selectedUser?.totalOrders || 0}
+                          </span>
                         </div>
                       </div>
 
@@ -753,7 +778,11 @@ export default function UserManagement() {
                           Tổng chi tiêu
                         </label>
                         <div className="text-gray-900 dark:text-white font-medium">
-                          {formatPrice(userDetails?.total_spent || userDetails?.total_amount || selectedUser?.totalSpent)}
+                          {formatPrice(
+                            userOrderCount && userOrderCount.userId === selectedUser?.id
+                              ? userOrderCount.total_price
+                              : userDetails?.total_spent || userDetails?.total_amount || selectedUser?.totalSpent
+                          )}
                         </div>
                       </div>
                     </div>

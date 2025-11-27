@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ArrowLeft, ShoppingCart, Heart, Share2, Star, Truck, Shield, RotateCcw } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { Product } from '@/types';
 
 export default function ProductDetailPage() {
@@ -17,11 +18,12 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState('1');
   const [reviews, setReviews] = useState<{ rating: number; title: string; body_review: string; created_at: string }[]>([]);
   const [newReview, setNewReview] = useState({ rating: 0, body_review: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 3;
-
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   useEffect(() => {
     const fetchProduct = async () => {
       if (!params.id) return;
@@ -54,7 +56,7 @@ export default function ProductDetailPage() {
           stock: data.stock || 0,
           rating: data.rating || 0,
           reviews: data.reviews || 0,
-          sold: data.sold || 0,
+          sold_count: data.sold || 0,
           tags: data.tags || [],
           featured: data.featured || false,
           isActive: data.isActive !== false,
@@ -125,6 +127,13 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
+
+    if (!isAuthenticated || !user) {
+      showError('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      router.push('/auth/login');
+      return;
+    }
+
     if (!product) return;
     
     const result = await addToCart(product, quantity);
@@ -137,6 +146,13 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = () => {
+
+    if (!isAuthenticated || !user) {
+      showError('Vui lòng đăng nhập để mua sản phẩm');
+      router.push('/auth/login');
+      return;
+    }
+
     if (!product) return;
 
     // Chuyển hướng đến trang order với thông tin sản phẩm
@@ -144,7 +160,15 @@ export default function ProductDetailPage() {
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
+    if (!isAuthenticated || !user) {
+      showError('Vui lòng đăng nhập để đánh giá sản phẩm');
+      router.push('/auth/login');
+      return;
+    }
+
+    
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       const localToken = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('access_token')) : null;
@@ -275,9 +299,9 @@ export default function ProductDetailPage() {
                   <span className="text-gray-600 dark:text-gray-400">
                     {product.reviews} đánh giá
                   </span>
-                  {product.sold && (
+                  {product.sold_count && (
                     <span className="text-gray-600 dark:text-gray-400">
-                      Đã bán {product.sold}
+                      Đã bán {product.sold_count}
                     </span>
                   )}
                 </div>
@@ -335,7 +359,11 @@ export default function ProductDetailPage() {
                 <span className="text-gray-600 dark:text-gray-400">Số lượng:</span>
                 <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg">
                   <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    onClick={() => {
+                      const newQuantity = Math.max(1, quantity - 1);
+                      setQuantity(newQuantity);
+                      setQuantityInput(newQuantity.toString());
+                    }}
                     className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                     disabled={quantity <= 1}
                   >
@@ -343,14 +371,51 @@ export default function ProductDetailPage() {
                   </button>
                   <input
                     type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock, parseInt(e.target.value) || 1)))}
-                    className="w-16 text-center border-x border-gray-300 dark:border-gray-600 py-2 dark:bg-gray-800"
-                    min={1}
-                    max={product.stock}
+                    value={quantityInput}
+                    onChange={(e) => {
+                      const value =  e.target.value;
+                      setQuantityInput(value);
+
+                      const numValue = parseInt(value);
+                      const maxQuantity = Math.min(10, product.stock);
+                      if (!isNaN(numValue) && numValue > 0) {
+                        if (numValue > maxQuantity) {
+                          setQuantityInput(maxQuantity.toString());
+                          setQuantity(maxQuantity);
+                        } else {
+                          setQuantityInput(value);
+                          setQuantity(numValue);
+                        }
+                      } else {
+                        setQuantityInput(value);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const numValue = parseInt(e.target.value);
+                      const maxQuantity = Math.min(10, product.stock);
+                      
+                      if (isNaN(numValue) || numValue < 1 || e.target.value === '') {
+                        setQuantityInput('1');
+                        setQuantity(1);
+                      } else if (numValue > maxQuantity) {
+                        setQuantityInput(maxQuantity.toString());
+                        setQuantity(maxQuantity);
+                      } else {
+                        setQuantityInput(numValue.toString());
+                        setQuantity(numValue);
+                      }
+                    }}
+                    className="w-16 text-center border-x border-gray-300 dark:border-gray-600 py-2 dark:bg-gray-800  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    min={0}
+                    max={Math.min(10, product.stock)}
                   />
                   <button
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                    onClick={() => {
+                      const maxQuantity = Math.min(10, product.stock);
+                      const newQuantity = Math.min(maxQuantity, quantity + 1);
+                      setQuantity(newQuantity);
+                      setQuantityInput(newQuantity.toString());
+                    }}
                     className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                     disabled={quantity >= product.stock}
                   >

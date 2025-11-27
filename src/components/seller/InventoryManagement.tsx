@@ -31,7 +31,8 @@ interface Product {
   price: number;
   quantity: number;
   category?: string;
-  image_path?: string[]; // Now accepts array of image paths
+  image_path?: string[];
+  sold_count?: number;
   sku?: string;
   status: 'onsale' | 'offsale' | 'unavailable';
   createdAt?: string;
@@ -44,6 +45,7 @@ interface ProductFormData {
   price: number;
   quantity: number;
   category: string;
+  sold_count: number;
   sku?: string;
   status: 'onsale' | 'offsale' | 'unavailable';
   images: string[]; // Keep images array for internal use
@@ -78,6 +80,7 @@ export default function InventoryManagement() {
     price: 0,
     quantity: 0,
     category: '',
+    sold_count: 0,
     sku: '',
     status: 'onsale',
     images: []
@@ -98,7 +101,7 @@ export default function InventoryManagement() {
     : [];
 
   // Fetch products from API via proxy
-  const fetchProducts = async () => {
+  const fetchProducts = async () => { // Fetch products from API via proxy
     setLoading(true);
     setError(null);
     try {
@@ -354,6 +357,7 @@ export default function InventoryManagement() {
       price: 0,
       quantity: 0,
       category: '',
+      sold_count: 0,
       sku: '',
       status: 'onsale',
       images: []
@@ -422,6 +426,7 @@ export default function InventoryManagement() {
       price: product.price,
       quantity: product.quantity,
       category: product.category || '',
+      sold_count: product.sold_count || 0,
       sku: product.sku || '',
       status: isValidStatus ? (validStatus as any) : 'onsale',
       images: displayImages // Store full URLs for display; extract keys on submit
@@ -645,6 +650,7 @@ export default function InventoryManagement() {
                   <th className="px-4 py-3 text-left text-white font-medium">Thông tin</th>
                   <th className="px-4 py-3 text-left text-white font-medium">Giá</th>
                   <th className="px-4 py-3 text-left text-white font-medium">Số lượng</th>
+                  <th className="px-4 py-3 text-left text-white font-medium">Đã bán</th>
                   <th className="px-4 py-3 text-left text-white font-medium">Trạng thái</th>
                   <th className="px-4 py-3 text-left text-white font-medium">Hành động</th>
                 </tr>
@@ -683,6 +689,11 @@ export default function InventoryManagement() {
                     <td className="px-4 py-4">
                       <span className={`font-medium ${product.quantity === 0 ? 'text-red-400' : 'text-white'}`}>
                         {product.quantity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-white font-medium">
+                        {product.sold_count}
                       </span>
                     </td>
                     <td className="px-4 py-4">

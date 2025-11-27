@@ -16,6 +16,7 @@ export default function OrderPage() {
   const productId = searchParams.get('productId');
   const quantity = searchParams.get('quantity') || 1;
 
+  const [products, setProducts] = useState<Array<{ id: string; name: string; price: number; category?: string; image?: string; quantity: number }>>([]);
   const [product, setProduct] = useState<{ name: string; price: number; category?: string; image?: string } | null>(null);
   const [userInfo, setUserInfo] = useState<{ name: string; phone: string } | null>(null);
   const [addresses, setAddresses] = useState<Array<{ id: string; address: string }>>([]);
@@ -43,13 +44,75 @@ export default function OrderPage() {
 
   let isMounted = true;
 
+  const storedItems = sessionStorage.getItem('checkoutItems');
+  const fetchStoredProducts = async () => {
+    if (storedItems) {
+      try {
+        const selectedItems = JSON.parse(storedItems);
+        console.log('[OrderPage] Found items in sessionStorage:', selectedItems);
+        
+        const productPromises = selectedItems.map(async (item: any) => {
+          try {
+            const response = await fetch(`/api/products/${item.id}`);
+            if (!response.ok) throw new Error('Failed to fetch product');
+            const productData = await response.json();
+            return {
+              id: item.id,
+              name: productData.name || item.name,
+              price: productData.price || item.price,
+              category: productData.category,
+              image: productData.image || item.image,
+              quantity: item.quantity || 1,
+            };
+          } catch (error) {
+            console.error('Error fetching product:', error);
+            return {
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              category: '',
+              image: item.image,
+              quantity: item.quantity || 1,
+            };
+          }
+        });
+        
+        const fetchedProducts = await Promise.all(productPromises);
+        if (isMounted) {
+          setProducts(fetchedProducts);
+          if (fetchedProducts.length > 0) {
+            setProduct({
+              name: fetchedProducts[0].name,
+              price: fetchedProducts[0].price,
+              category: fetchedProducts[0].category,
+              image: fetchedProducts[0].image,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing stored items:', error);
+      }
+    }
+  };
+
   const fetchProduct = async () => {
     try {
       console.log('[OrderPage] Fetching product:', productId);
       const response = await fetch(`/api/products/${productId}`);
       if (!response.ok) throw new Error('Failed to fetch product');
       const data = await response.json();
-      if (isMounted) setProduct(data);
+      if (isMounted) {
+        setProduct(data);
+        // Set products array for consistency
+        setProducts([{
+          id: productId || '',
+          name: data.name,
+          price: data.price,
+          category: data.category,
+          image: data.image,
+          quantity: Number(quantity),
+        }]);
+      }
     } catch (error) {
       if (isMounted) {
         console.error('Error fetching product:', error);
@@ -123,9 +186,14 @@ export default function OrderPage() {
   const executeAllFetches = async () => {
     const tasks: Promise<void>[] = [];
 
-    if (productId) tasks.push(fetchProduct());
     tasks.push(fetchUserInfo());
     tasks.push(fetchUserAddress());
+
+    if (storedItems) {
+      tasks.push(fetchStoredProducts());
+    } else if (productId) {
+      tasks.push(fetchProduct());
+    }
 
     try {
       await Promise.all(tasks);
@@ -159,7 +227,7 @@ export default function OrderPage() {
       return;
     }
 
-    if (!product) {
+    if (products.length === 0 && !product) {
       showError('Không có thông tin sản phẩm');
       return;
     }
@@ -174,15 +242,100 @@ export default function OrderPage() {
         'stripe': 'STRIPE',
       };
 
-      const response = await apiClient.post(API_ENDPOINTS.ORDERS.ORDER_DIRECT, {
-        items: [
-          {
-            product_id: productId,
-            name: product.name,
-            quantity: Number(quantity),
-            price: product.price,
+      const isCartOrder = products.length > 0 && sessionStorage.getItem('checkoutItems');
+      
+      if (isCartOrder) {
+        const orderData = {
+          items: products.map(p => ({
+            productId: p.id,
+            product_id: p.id,
+            quantity: p.quantity,
+            price: p.price,
+            name: p.name,
+          })),
+          customerEmail: authUser?.email || '',
+          customerName: userInfo?.name || '',
+          customerPhone: userInfo?.phone || '',
+          shippingAddress: shippingAddress,
+          shippingCity: '',
+          shippingDistrict: '',
+          shippingWard: '',
+          note: '',
+          paymentMethod: paymentMethodMap[paymentMethod] || paymentMethod,
+          totalAmount: totalPrice,
+        };
+
+        // Use apiClient to get automatic token refresh handling
+        const typedResponse = await apiClient.post('/api/orders/cart', orderData) as any;
+        const orderId = typedResponse.order_id || typedResponse.id || 'unknown';
+        console.log('[handleOrder] Cart order response:', typedResponse);
+        console.log('[handleOrder] Extracted orderId:', orderId);
+        
+        sessionStorage.removeItem('checkoutItems');
+        
+        if (paymentMethod === 'stripe') {
+          try {
+            showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
+            
+            const amountToCharge = totalPrice + shippingFee;
+            
+            const sessionResponse = await fetch('/api/payment/create-checkout-session', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                orderId,
+                amount: amountToCharge,
+                email: authUser?.email || '',
+                items: products.map(p => ({
+                  product_id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  quantity: p.quantity,
+                })),
+              }),
+            });
+
+            if (!sessionResponse.ok) {
+              const error = await sessionResponse.json();
+              throw new Error(error.error || 'Failed to create checkout session');
+            }
+
+            const sessionData = await sessionResponse.json();
+            console.log('Checkout session created:', sessionData);
+            
+            if (sessionData.url) {
+              window.location.href = sessionData.url;
+            } else {
+              throw new Error('No checkout URL returned');
+            }
+          } catch (stripeError: any) {
+            console.error('Stripe payment error:', stripeError);
+            showError(stripeError.message || 'Lỗi khi tạo phiên thanh toán');
+            setLoading(false);
+            return;
           }
-        ],
+        } else {
+          showSuccess('Đơn hàng đã được tạo thành công!');
+          setLoading(false);
+          setTimeout(() => {
+            router.push('/my-orders');
+          }, 1500);
+        }
+        
+        return;
+      }
+
+      const itemsToOrder = product && productId ? [{
+        product_id: productId,
+        name: product.name,
+        quantity: Number(quantity),
+        price: product.price,
+      }] : [];
+
+      const response = await apiClient.post(API_ENDPOINTS.ORDERS.ORDER_DIRECT, {
+        items: itemsToOrder,
         source: 'direct_purchase',
         payment_method: paymentMethodMap[paymentMethod] || paymentMethod,
         shipping_address: shippingAddress,
@@ -194,7 +347,8 @@ export default function OrderPage() {
       console.log('[handleOrder] Order response keys:', Object.keys(typedResponse));
       console.log('[handleOrder] Extracted orderId:', orderId);
       
-      // If payment method is Stripe, create checkout session
+      sessionStorage.removeItem('checkoutItems');
+      
       if (paymentMethod === 'stripe') {
         try {
           showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
@@ -218,14 +372,19 @@ export default function OrderPage() {
               orderId,
               amount: amountToCharge,
               email: authUser?.email || '',
-              items: [
-                {
-                  product_id: productId,
-                  name: product?.name || 'Product',
-                  price: product?.price || 0,
-                  quantity: Number(quantity),
-                }
-              ],
+              items: products.length > 0
+                ? products.map(p => ({
+                    product_id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    quantity: p.quantity,
+                  }))
+                : (product && productId ? [{
+                    product_id: productId,
+                    name: product.name,
+                    price: product.price,
+                    quantity: Number(quantity),
+                  }] : []),
             }),
           });
 
@@ -262,7 +421,9 @@ export default function OrderPage() {
 
   const parsedQuantity = Number(quantity);
   const shippingFee = 16500;
-  const totalPrice = product ? product.price * parsedQuantity : 0;
+  const totalPrice = products.length > 0 
+    ? products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
+    : (product ? product.price * parsedQuantity : 0);
   const totalPayment = totalPrice + shippingFee;
 
   console.log('[OrderPage] Rendering with state:', { 
@@ -387,30 +548,43 @@ export default function OrderPage() {
             ) : null}
 
             {/* Sản phẩm */}
-            {product && (
+            {(products.length > 0 || product) && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Sản phẩm</h2>
-                <div className="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                  {/* Product Image */}
-                  <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
-                    {product.image && (
-                      <img 
-                        src={product.image} 
-                        alt={product.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-                  {/* Product Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-white truncate">{product.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Phân loại: {product.category || 'N/A'}</p>
-                  </div>
-                  {/* Price and Quantity */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-gray-900 dark:text-white">{product.price.toLocaleString()} VND</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">x{parsedQuantity}</p>
-                  </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Sản phẩm {products.length > 1 ? `(${products.length} sản phẩm)` : ''}
+                </h2>
+                <div className="space-y-4">
+                  {(products.length > 0 ? products : (product ? [{
+                    id: productId || '',
+                    name: product.name,
+                    price: product.price,
+                    category: product.category,
+                    image: product.image,
+                    quantity: Number(quantity),
+                  }] : [])).map((item, index) => (
+                    <div key={item.id || index} className="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 last:pb-0">
+                      {/* Product Image */}
+                      <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
+                        {item.image && (
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">{item.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Phân loại: {item.category || 'N/A'}</p>
+                      </div>
+                      {/* Price and Quantity */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-gray-900 dark:text-white">{item.price.toLocaleString()} VND</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">x{item.quantity}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

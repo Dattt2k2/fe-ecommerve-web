@@ -15,6 +15,7 @@ export default function CartPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteAction, setDeleteAction] = useState<DeleteAction | null>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     // Nếu số lượng về 0, hiển thị modal xác nhận
@@ -134,12 +135,56 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Select All Checkbox */}
+          {items.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedItems.size === items.length && items.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedItems(new Set(items.map(item => item.id)));
+                    } else {
+                      setSelectedItems(new Set());
+                    }
+                  }}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                  Chọn tất cả ({items.length} sản phẩm)
+                </span>
+              </label>
+            </div>
+          )}
+
           {items.map((item) => (
             <div
               key={item.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+              className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${
+                selectedItems.has(item.id)
+                  ? 'border-blue-500 dark:border-blue-400'
+                  : 'border-gray-200 dark:border-gray-700'
+              } p-6`}
             >
               <div className="flex items-start gap-4">
+                {/* Checkbox */}
+                <div className="flex-shrink-0 pt-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.has(item.id)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedItems);
+                      if (e.target.checked) {
+                        newSelected.add(item.id);
+                      } else {
+                        newSelected.delete(item.id);
+                      }
+                      setSelectedItems(newSelected);
+                    }}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                </div>
                 {/* Product Image */}
                 <Link href={`/products/${item.product.id}`} className="flex-shrink-0">
                   <div className="w-20 h-20 relative rounded-lg overflow-hidden">
@@ -255,7 +300,7 @@ export default function CartPage() {
             </div>
 
             {/* Discount Code */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Mã giảm giá
               </label>
@@ -269,19 +314,74 @@ export default function CartPage() {
                   Áp dụng
                 </button>
               </div>
-            </div>
+            </div> */}
+
+            {/* Selected Items Summary */}
+            {selectedItems.size > 0 && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+                  Đã chọn {selectedItems.size} sản phẩm
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Tổng tiền: {formatPrice(
+                    items
+                      .filter(item => selectedItems.has(item.id))
+                      .reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
+                  )}
+                </p>
+              </div>
+            )}
 
             {/* Checkout Button */}
-            <Link
-              href="/order"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-center block"
-            >
-              Tiến hành thanh toán
-            </Link>
+            {items.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedItems.size === 0) {
+                    setError('Vui lòng chọn ít nhất một sản phẩm để thanh toán');
+                    setTimeout(() => setError(''), 3000);
+                    return;
+                  }
+                  
+                  const selectedItemsData = items
+                    .filter(item => selectedItems.has(item.id))
+                    .map(item => ({
+                      id: item.product.id,
+                      name: item.product.name,
+                      price: item.product.price,
+                      quantity: item.quantity,
+                      image: item.product.image,
+                      size: item.size,
+                      color: item.color,
+                    }));
+                  
+                  sessionStorage.setItem('checkoutItems', JSON.stringify(selectedItemsData));
+                  
+                  if (selectedItemsData.length === 1) {
+                    const orderUrl = `/order?productId=${encodeURIComponent(selectedItemsData[0].id)}&quantity=${selectedItemsData[0].quantity || 1}`;
+                    window.location.href = orderUrl;
+                  } else {
+                    window.location.href = '/order';
+                  }
+                }}
+                disabled={selectedItems.size === 0}
+                className={`w-full py-3 rounded-lg font-medium text-center transition-colors ${
+                  selectedItems.size === 0
+                    ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {selectedItems.size === 0 
+                  ? 'Vui lòng chọn sản phẩm'
+                  : selectedItems.size === 1
+                  ? 'Tiến hành thanh toán'
+                  : `Thanh toán sản phẩm đầu tiên (${selectedItems.size} sản phẩm đã chọn)`
+                }
+              </button>
+            )}
 
             {/* Continue Shopping */}
             <Link
-              href="/"
+              href="/products"
               className="w-full mt-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium text-center block"
             >
               Tiếp tục mua sắm

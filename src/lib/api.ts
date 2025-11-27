@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /users/:id)
   },  PRODUCTS: {
     LIST: USE_INTERNAL_API ? '/products' : '/products',
+    BEST_SELLER: USE_INTERNAL_API ? '/products/best-selling' : '/products/best-selling',
     DETAIL: (id: string) => USE_INTERNAL_API ? `/products-info/${id}` : `/products-info/${id}`,
     CREATE: USE_INTERNAL_API ? '/products' : '/seller/products',
     UPDATE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
@@ -28,21 +29,22 @@ export const API_ENDPOINTS = {
     SEARCH: USE_INTERNAL_API ? '/products/search' : '/products/search',
     ADVANCED_SEARCH: USE_INTERNAL_API ? '/products/advanced-search' : '/products/advanced-search',
     CATEGORIES: USE_INTERNAL_API ? '/products/categories' : '/products/categories',
-    CATEGORY_LIST: '/api/products/get/category', // Always use Next.js proxy route for client-side calls
-    CATEGORY_CREATE: '/api/products/category', // Always use Next.js proxy route for client-side calls
-    CATEGORY_DELETE: (id: string) => `/api/products/category/${id}`, // Always use Next.js proxy route for client-side calls
-    STATISTICS: '/api/products/statistics', // Always use Next.js proxy route for client-side calls
+    CATEGORY_LIST: '/api/products/get/category', 
+    CATEGORY_CREATE: '/api/products/category', 
+    CATEGORY_DELETE: (id: string) => `/api/products/category/${id}`, 
+    STATISTICS: '/api/products/statistics', 
   },
   ORDERS: {
     LIST: USE_INTERNAL_API ? '/orders' : '/admin/orders',
     DETAIL: (id: string) => USE_INTERNAL_API ? `/orders/${id}` : `/admin/orders/${id}`,
     CREATE: USE_INTERNAL_API ? '/orders' : '/orders',
     UPDATE: (id: string) => USE_INTERNAL_API ? `/orders/${id}` : `/orders/${id}`,
-    USER_ORDERS: '/api/orders/user', // Always use Next.js proxy route for client-side calls
+    USER_ORDERS: '/api/orders/user', 
     ORDER_FROM_CART: USE_INTERNAL_API ? '/api/orders/cart' : '/order/cart',
-    ORDER_DIRECT: '/api/orders/direct', // Always use Next.js proxy route for client-side calls
-    CANCEL_ORDER: (orderId: string) => `/api/orders/cancel/${orderId}`, // Always use Next.js proxy route for client-side calls
-    STATISTICS: '/api/orders/statistics', // Always use Next.js proxy route for client-side calls
+    ORDER_DIRECT: '/api/orders/direct', 
+    CANCEL_ORDER: (orderId: string) => `/api/orders/cancel/${orderId}`, 
+    STATISTICS: '/api/orders/statistics', 
+    USER_ORDER_COUNT: (id: string) => `/api/orders/${id}/count`, 
   },
   USERS: {
     LIST: USE_INTERNAL_API ? '/me' : '/me',
@@ -689,6 +691,34 @@ export const productsAPI = {
       throw error;
     }
   },
+
+  getBestSeller: async (): Promise<{ products: Product[] }> => {
+    const endpoint = `/api/product/get/best-selling`;
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const productArray = data.data || data.best_seller || [];
+
+      return {
+        products: Array.isArray(productArray) ? productArray : [],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
     
 };
 
@@ -735,25 +765,24 @@ export const ordersAPI = {
     previous_revenue: number;
   }> => 
     apiClient.get(API_ENDPOINTS.ORDERS.STATISTICS),
+
+    getUserOrdersCount: (userId: string): Promise<{ orders_count: number; total_amount: number }> => 
+      apiClient.post(API_ENDPOINTS.ORDERS.USER_ORDER_COUNT(userId), {}),
 };
 
 export const usersAPI = {
   getUsers: (params?: Record<string, string>): Promise<{ users: User[]; pagination: any }> => 
     apiClient.get(`${API_ENDPOINTS.USERS.LIST}${params ? `?${new URLSearchParams(params)}` : ''}`),
   
-  // Single-flight / simple cache to avoid duplicate concurrent requests for user data
-  // key can be an id or 'current' for the current authenticated user
   getUser: (() => {
     const cache: Record<string, { data?: any; promise?: Promise<any> }> = {};
 
     return (id?: string): Promise<{ user: User } | any> => {
       const key = id || 'current';
-      // Return cached data if available
       if (cache[key]?.data) {
         return Promise.resolve({ user: cache[key].data });
       }
 
-      // If a request is already in-flight, return the same promise
       if (cache[key]?.promise) {
         return cache[key].promise as Promise<any>;
       }

@@ -62,6 +62,11 @@ export interface Order {
   updatedAt: Date;
 }
 
+export interface UserOrderCount {
+  count: number;
+  total_amount: number;
+}
+
 export interface Category {
   id: string;
   name: string;

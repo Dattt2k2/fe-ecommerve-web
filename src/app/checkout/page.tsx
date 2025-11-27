@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 
 export default function CheckoutPage() {
-  const { items, total, itemCount, clearCart } = useCart();
+  const { items: cartItems, total: cartTotal, itemCount, clearCart } = useCart();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -26,6 +26,55 @@ export default function CheckoutPage() {
     note: '',
     paymentMethod: 'cod', // cod, credit, momo
   });
+
+  // Get selected items from sessionStorage or use all cart items
+  const [items, setItems] = useState(cartItems);
+  const [total, setTotal] = useState(cartTotal);
+
+  useEffect(() => {
+    // Check if there are selected items in sessionStorage
+    const storedItems = sessionStorage.getItem('checkoutItems');
+    if (storedItems) {
+      try {
+        const selectedItems = JSON.parse(storedItems);
+        // Convert to CartItem format
+        const formattedItems = selectedItems.map((item: any) => ({
+          id: item.id,
+          product: {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image || '/placeholder-product.jpg',
+            description: '',
+            stock: 100,
+            category: '',
+            rating: 0,
+            reviews: 0,
+          },
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+        }));
+        setItems(formattedItems);
+        const calculatedTotal = formattedItems.reduce(
+          (sum: number, item: any) => sum + item.product.price * item.quantity,
+          0
+        );
+        setTotal(calculatedTotal);
+        // Clear sessionStorage after reading
+        sessionStorage.removeItem('checkoutItems');
+      } catch (error) {
+        console.error('Error parsing checkout items:', error);
+        // Fallback to cart items
+        setItems(cartItems);
+        setTotal(cartTotal);
+      }
+    } else {
+      // Use all cart items if no selection
+      setItems(cartItems);
+      setTotal(cartTotal);
+    }
+  }, [cartItems, cartTotal]);
 
   // Lắng nghe message từ window con (payment window)
   useEffect(() => {
