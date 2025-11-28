@@ -555,8 +555,8 @@ export default function InventoryManagement() {
       {activeTab === 'products' && (
         <>
       {/* Filters and Search */}
-      <div className="bg-white/5 rounded-lg p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="bg-white/5 rounded-lg p-4 flex items-center justify-end">
+        <div className="grid auto-cols-max grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 w-fit ml-auto">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -583,7 +583,7 @@ export default function InventoryManagement() {
           </select>
 
           {/* Status Filter */}
-          <select
+          {/* <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -592,7 +592,7 @@ export default function InventoryManagement() {
             <option value="onsale">Đang bán</option>
             <option value="offsale">Không bán</option>
             <option value="unavailable">Không có sẵn</option>
-          </select>
+          </select> */}
 
           {/* Sort By */}
           <select

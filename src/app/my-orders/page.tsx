@@ -189,6 +189,45 @@ export default function MyOrdersPage() {
     }
   };
 
+  const getPaymentStatusLabel = (paymentStatus?: string) => {
+    if (!paymentStatus) return 'N/A';
+    
+    const normalized = paymentStatus.toUpperCase();
+    
+    // Kiểm tra các trạng thái đã thanh toán
+    if (isPaymentCompleted(paymentStatus)) {
+      return 'Đã thanh toán';
+    }
+    
+    // Các trạng thái chờ thanh toán
+    switch (normalized) {
+      case 'COD_PENDING':
+        return 'Chờ thanh toán (COD)';
+      case 'PENDING':
+      case 'PENDING_VERIFICATION':
+        return 'Chờ thanh toán';
+      case 'PAYMENT_HELD':
+      case 'PAYMENT-HELD':
+      case 'HELD':
+        return 'Đã giữ tiền';
+      case 'PAYMENT_RELEASE':
+      case 'PAYMENT_RELEASED':
+      case 'PAYMENT-RELEASE':
+        return 'Đã giải ngân';
+      case 'FAILED':
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'Thanh toán thất bại';
+      case 'AUTHORIZED':
+        return 'Đã ủy quyền';
+      default:
+        return paymentStatus
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+    }
+  };
+
   const isPaymentCompleted = (paymentStatus?: string) => {
     const s = (paymentStatus || '').toLowerCase();
     // Treat common forms of completed/held/approved payments as "paid" for the UI
@@ -391,9 +430,7 @@ export default function MyOrdersPage() {
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Trạng thái thanh toán</p>
                           <p className="text-gray-900 dark:text-white">
-                            {isPaymentCompleted(order.payment_status) ? 'Đã thanh toán' : 
-                             (order.payment_status?.toUpperCase() === 'PENDING' ? 'Chờ thanh toán' : 
-                             order.payment_status || 'N/A')}
+                            {getPaymentStatusLabel(order.payment_status)}
                           </p>
                         </div>
                         <div>

@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Package, ShoppingCart, Menu, X, BarChart3, Users } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function SellerDashboard({ children }: { children?: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const router = useRouter();
+    const pathname = usePathname();
 
     const menuItems = [
         { id: 'inventory', label: 'Kho hàng', icon: Package, href: '/seller/inventory' },
@@ -44,7 +45,7 @@ export default function SellerDashboard({ children }: { children?: React.ReactNo
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-900 dark:from-gray-800 dark:to-black flex flex-col w-full">
             
             {/* Mobile Navigation Bar */}
-            <div className="lg:hidden sticky top-20 sm:top-24 z-50 bg-gradient-to-r from-orange-500 to-gray-800 border-b border-gray-700 px-4 py-3 shadow-lg">
+            {/* <div className="lg:hidden sticky top-20 sm:top-24 z-50 bg-gradient-to-r from-orange-500 to-gray-800 border-b border-gray-700 px-4 py-3 shadow-lg">
                 <button
                     onClick={toggleSidebar}
                     className="flex items-center space-x-2 text-white hover:text-orange-200 transition-colors font-medium text-sm bg-transparent border-none cursor-pointer p-2 rounded-lg hover:bg-white hover:bg-opacity-10"
@@ -52,7 +53,7 @@ export default function SellerDashboard({ children }: { children?: React.ReactNo
                     <Menu className="w-5 h-5" />
                     <span>Kênh Người Bán</span>
                 </button>
-            </div>
+            </div> */}
 
             {/* Layout Container */}
             <div className="flex flex-1 relative">
@@ -106,30 +107,37 @@ export default function SellerDashboard({ children }: { children?: React.ReactNo
                         <ul className="space-y-2">
                             {menuItems.map((item) => {
                                 const Icon = item.icon;
+                                const isActive = pathname === item.href || (pathname?.startsWith(item.href + '/') && item.href !== '/seller');
                                 return (
                                     <li key={item.id}>
                                         <button
                                             onClick={() => handleMenuClick(item.href)}
-                                            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-orange-500/20 hover:to-orange-600/20 hover:shadow-lg hover:scale-105 transition-all duration-200 group bg-transparent border-none cursor-pointer"
+                                            className={`
+                                                w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium 
+                                                ${isActive 
+                                                    ? 'text-white bg-gradient-to-r from-orange-500/20 to-orange-600/20 shadow-lg scale-105' 
+                                                    : 'text-gray-300'
+                                                }
+                                                hover:text-white hover:bg-gradient-to-r hover:from-orange-500/20 hover:to-orange-600/20 hover:shadow-lg hover:scale-105 
+                                                transition-all duration-200 group bg-transparent border-none cursor-pointer focus:outline-none
+                                            `}
                                         >
-                                            <Icon className="w-5 h-5 group-hover:text-orange-400 transition-colors" />
+                                            <Icon className={`w-5 h-5 transition-colors ${
+                                                isActive 
+                                                    ? 'text-orange-400' 
+                                                    : 'group-hover:text-orange-400'
+                                            }`} />
                                             <span>{item.label}</span>
-                                            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                                            </div>
+                                            {isActive && (
+                                                <div className="ml-auto opacity-100 transition-opacity">
+                                                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                                                </div>
+                                            )}
                                         </button>
                                     </li>
                                 );
                             })}
                         </ul>
-
-                        {/* Additional Info */}
-                        <div className="mt-8 px-4 py-3 bg-gradient-to-r from-orange-500/10 to-orange-600/10 rounded-xl border border-orange-500/20">
-                            <div className="text-xs text-orange-200">
-                                <p className="font-medium mb-1">💡 Mẹo bán hàng</p>
-                                <p className="text-orange-300/80">Cập nhật sản phẩm thường xuyên để tăng doanh số</p>
-                            </div>
-                        </div>
                     </nav>
                 </aside>
 

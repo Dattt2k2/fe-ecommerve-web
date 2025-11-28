@@ -50,7 +50,7 @@ export default function SellerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Use uppercase constants for filter state to match normalized order.status
-  const [filter, setFilter] = useState<'all' | 'PENDING' | 'PROCESSING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED' | 'PAYMENT_RELEASE'>('all');
+  const [filter, setFilter] = useState<'all' | 'PENDING' | 'PROCESSING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED' | 'SHIPPED'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -142,14 +142,14 @@ export default function SellerOrdersPage() {
         // Map different "in transit" variants to our internal DELIVERING state
         if (raw === 'delivering' || raw === 'shipping' || raw === 'in_transit' || raw === 'in-transit') return 'DELIVERING';
         // API 'shipped' flag should be considered 'DELIVERED' in our UI
-        if (raw === 'shipped') return 'DELIVERED';
+        if (raw === 'shipped') return 'SHIPPED';
         if (raw === 'delivered' || raw === 'completed') return 'DELIVERED';
         // If uppercase, convert and try again
         const upperRaw = String(s).toUpperCase();
         if (upperRaw === 'PENDING' || upperRaw === 'PAYMENT_HELD') return 'PENDING';
         if (upperRaw === 'PROCESSING') return 'PROCESSING';
         if (upperRaw === 'DELIVERING' || upperRaw === 'SHIPPING' || upperRaw === 'IN_TRANSIT') return 'DELIVERING';
-        if (upperRaw === 'SHIPPED') return 'DELIVERED';
+        if (upperRaw === 'SHIPPED') return 'SHIPPED';
         if (upperRaw === 'DELIVERED' || upperRaw === 'COMPLETED') return 'DELIVERED';
         if (upperRaw === 'CANCELED' || upperRaw === 'CANCELLED') return 'CANCELLED';
         return upperRaw;
@@ -176,13 +176,7 @@ export default function SellerOrdersPage() {
           // If main Status exists, normalize it first
           if (mainStatus) {
             const normalizedMain = normalizeStatus(mainStatus);
-            // If it's a valid status (shipping, payment release, or cancelled), use it
-            if (['PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'PAYMENT_RELEASE'].includes(normalizedMain)) {
-              return normalizedMain;
-            }
-            // If normalized status is not in our list, check if ShippingStatus or PaymentStatus is more relevant
-            // But if mainStatus is PAYMENT_RELEASED, we should return PAYMENT_RELEASE
-            if (normalizedMain === 'PAYMENT_RELEASE') {
+            if (['PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'SHIPPED'].includes(normalizedMain)) {
               return normalizedMain;
             }
             // Fallback to ShippingStatus or PaymentStatus
@@ -253,6 +247,7 @@ export default function SellerOrdersPage() {
       PROCESSING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Đang xử lý', icon: Check },
       DELIVERING: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Đang giao', icon: Package },
       DELIVERED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giao', icon: Check },
+      SHIPPED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã nhận hàng', icon: Check },
       PAYMENT_RELEASE: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã giải ngân', icon: Check },
       CANCELLED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Đã hủy', icon: X },
     };
@@ -395,7 +390,7 @@ export default function SellerOrdersPage() {
       <div className="space-y-4">
         {/* Status Filter */}
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'PENDING', 'PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'PAYMENT_RELEASE'] as const).map(status => (
+          {(['all', 'PENDING', 'PROCESSING', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'SHIPPED'] as const).map(status => (
             <button
               key={status}
               onClick={() => setFilter(status as any)}
@@ -410,8 +405,9 @@ export default function SellerOrdersPage() {
                 PROCESSING: 'Đang xử lý',
                 DELIVERING: 'Đang giao',
                 DELIVERED: 'Đã giao',
+                SHIPPED: 'Đã nhận hàng',
                 CANCELLED: 'Đã hủy',
-                PAYMENT_RELEASE: 'Đã giải ngân',
+                // PAYMENT_RELEASE: 'Đã giải ngân',
               }[status]}
             </button>
           ))}
@@ -534,7 +530,7 @@ export default function SellerOrdersPage() {
                             Đang giao
                           </button>
                         )}
-                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
+                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'SHIPPED' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                           <button
                             onClick={() => cancelOrder(order.id || '')}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
@@ -584,7 +580,7 @@ export default function SellerOrdersPage() {
                         DELIVERING: 'Đang giao',
                         DELIVERED: 'Đã giao',
                         CANCELLED: 'Đã hủy',
-                        PAYMENT_RELEASE: 'Đã giải ngân',
+                        SHIPPED: 'Đã nhận hàng',
                       };
                       return statusMap[expandedOrder.status || 'PENDING'] || 'Không xác định';
                     })()}
@@ -608,7 +604,7 @@ export default function SellerOrdersPage() {
                       ✓ Xác nhận đơn hàng
                     </button>
                   )}
-                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
+                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'SHIPPED' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                     <button
                       onClick={() => { cancelOrder(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
                       className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"

@@ -138,6 +138,7 @@ import Link from "next/link";
 import ProfileSidebar from "@/components/profile/ProfileSidebar";
 import ProfileDetails from "@/components/profile/ProfileDetails";
 import AddressManagementPage from "@/components/profile/AddressManagementPage";
+import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
 
 type UserProfile = {
   id: string;
@@ -214,7 +215,7 @@ export default function ProfilePage() {
       return <AddressManagementPage />;
     }
     if (activeTab === "change-password") {
-      return <div className="text-white">Đổi mật khẩu (Coming Soon)</div>;
+      return <div><ChangePasswordForm /></div>;
     }
     
     // Personal info tab (default)

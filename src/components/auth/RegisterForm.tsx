@@ -104,7 +104,73 @@ export default function RegisterForm() {
       // Redirect to dashboard or previous page
       router.push('/');
     } catch (error: any) {
-      setSubmitError(error.message || 'Đăng ký thất bại');
+      let errorMessage = 'Đăng ký thất bại';
+    
+        try {
+        // error.message là JSON string, cần parse
+        const errorData = typeof error.message === 'string' ? JSON.parse(error.message) : error;
+        
+        // Lấy error từ data.error
+        const backendError = errorData?.data?.error || errorData?.error || errorData?.message;
+        
+        if (backendError) {
+          // Kiểm tra các lỗi duplicate key cụ thể
+          if (typeof backendError === 'string') {
+            if (backendError.includes('uni_users_email') || backendError.includes('duplicate key') && backendError.includes('email')) {
+              errorMessage = 'Email này đã được sử dụng. Vui lòng sử dụng email khác.';
+            } else if (backendError.includes('uni_users_phone') || backendError.includes('duplicate key') && backendError.includes('phone')) {
+              errorMessage = 'Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác.';
+            } else if (backendError.includes('duplicate key')) {
+              errorMessage = 'Thông tin đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.';
+            } else {
+              // Lấy message từ backend nếu có
+              errorMessage = backendError;
+            }
+          } else if (typeof backendError === 'object') {
+            errorMessage = backendError.message || backendError.detail || JSON.stringify(backendError);
+          }
+        } else if (errorData?.status) {
+          // Xử lý theo status code
+          switch (errorData.status) {
+            case 400:
+              errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
+              break;
+            case 409:
+              errorMessage = 'Email hoặc số điện thoại đã được sử dụng. Vui lòng thử lại.';
+              break;
+            case 422:
+              errorMessage = 'Thông tin không hợp lệ. Vui lòng kiểm tra lại.';
+              break;
+            case 500:
+              // Kiểm tra lại error message cho status 500
+              const errorMsg = errorData?.data?.error || '';
+              if (errorMsg.includes('uni_users_email')) {
+                errorMessage = 'Email này đã được sử dụng. Vui lòng sử dụng email khác.';
+              } else if (errorMsg.includes('uni_users_phone')) {
+                errorMessage = 'Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác.';
+              } else {
+                errorMessage = 'Lỗi server. Vui lòng thử lại sau.';
+              }
+              break;
+            default:
+              errorMessage = error.message || 'Đăng ký thất bại';
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      } catch (parseError) {
+        // Nếu không parse được, kiểm tra message gốc
+        const originalMessage = error.message || '';
+        if (originalMessage.includes('uni_users_email') || originalMessage.includes('email') && originalMessage.includes('duplicate')) {
+          errorMessage = 'Email này đã được sử dụng. Vui lòng sử dụng email khác.';
+        } else if (originalMessage.includes('uni_users_phone') || originalMessage.includes('phone') && originalMessage.includes('duplicate')) {
+          errorMessage = 'Số điện thoại này đã được sử dụng. Vui lòng sử dụng số điện thoại khác.';
+        } else {
+          errorMessage = originalMessage || 'Đăng ký thất bại';
+        }
+      }
+
+      setSubmitError(errorMessage);
     } finally {
       setLoading(false);
     }

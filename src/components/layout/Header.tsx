@@ -52,12 +52,6 @@ export default function Header() {
           <div className="flex justify-between items-center text-xs sm:text-sm text-white">
             {/* Left Links */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link 
-                href="/seller/inventory" 
-                className="hidden md:inline hover:underline transition-all duration-200 hover:text-orange-100"
-              >
-                Kênh Người Bán
-              </Link>
               <span className="hidden lg:inline cursor-pointer hover:underline hover:text-orange-100 transition-all">
                 Tải ứng dụng
               </span>

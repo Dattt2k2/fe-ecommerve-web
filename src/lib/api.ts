@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     REGISTER: '/api/auth/register', 
     LOGOUT: '/auth/users/logout',
     REFRESH: '/auth/refresh-token',
+    CHANGE_PASSWORD: '/api/auth/change-password',
     // Note: No PROFILE endpoint - use USERS.DETAIL(userId) instead (GET /users/:id)
   },  PRODUCTS: {
     LIST: USE_INTERNAL_API ? '/products' : '/products',
@@ -225,7 +226,7 @@ class ApiClient {
           isReviewGetRequest
         });
         
-        if (!isLoginEndpoint && !isReviewGetRequest) {
+        if (!isLoginEndpoint && !isReviewGetRequest && !isPublicEndpoint) {
           console.log('[ApiClient] Attempting token refresh...');
           // Attempt refresh once for authenticated endpoints (only on client side)
           const refreshed = typeof window !== 'undefined' ? await tryRefresh() : false;
@@ -519,6 +520,9 @@ export const authAPI = {
   
   getUserById: (userId: string): Promise<User> => 
     apiClient.get(API_ENDPOINTS.USERS.DETAIL()),
+
+  changePassword: (old_password: string, new_password: string): Promise<{ message: string }> => 
+    apiClient.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, { old_password, new_password }),
 };
 
 export const productsAPI = {

@@ -195,14 +195,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const response = await authAPI.register(userData);
 
-      // Assuming your API returns { user: User, token: string }
       if (response.user) {
         setUser(response.user);
         localStorage.setItem('user', JSON.stringify(response.user));
 
-        // Save token if provided
         if (response.token) {
           localStorage.setItem('auth_token', response.token);
+        }
+        if (response.refresh_token) {
+          localStorage.setItem('refresh_token', response.refresh_token);
+        }
+        if (response.access_token) {
+          localStorage.setItem('user_id', response.access_token);
         }
       }
     } catch (error: any) {

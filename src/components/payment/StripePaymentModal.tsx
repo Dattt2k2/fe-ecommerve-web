@@ -19,7 +19,6 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
-// Inner component that uses Stripe hooks
 function PaymentForm({
   orderId,
   amount,
@@ -95,7 +94,7 @@ function PaymentForm({
         clientSecret,
         confirmParams: {
           // Include the order id so the success page can notify the opener and close itself
-          return_url: `${window.location.origin}/payment/success?order_id=${encodeURIComponent(orderId)}`,
+          return_url: `${window.location.origin}/my-orders`,
         },
         redirect: 'if_required',
       });

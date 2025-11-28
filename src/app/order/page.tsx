@@ -265,7 +265,6 @@ export default function OrderPage() {
           totalAmount: totalPrice,
         };
 
-        // Use apiClient to get automatic token refresh handling
         const typedResponse = await apiClient.post('/api/orders/cart', orderData) as any;
         const orderId = typedResponse.order_id || typedResponse.id || 'unknown';
         console.log('[handleOrder] Cart order response:', typedResponse);
@@ -277,7 +276,7 @@ export default function OrderPage() {
           try {
             showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
             
-            const amountToCharge = totalPrice + shippingFee;
+            const amountToCharge = totalPrice;
             
             const sessionResponse = await fetch('/api/payment/create-checkout-session', {
               method: 'POST',
@@ -353,14 +352,7 @@ export default function OrderPage() {
         try {
           showSuccess('Đơn hàng đã được tạo! Chuyển hướng đến trang thanh toán...');
           
-          const amountToCharge = totalPrice + shippingFee;
-          console.log('[handleOrder] Stripe payment - amount:', {
-            totalPrice,
-            shippingFee,
-            amountToCharge,
-            productPrice: product?.price,
-            quantity: Number(quantity),
-          });
+          const amountToCharge = totalPrice;
           
           // Create Stripe checkout session
           const sessionResponse = await fetch('/api/payment/create-checkout-session', {
@@ -420,11 +412,11 @@ export default function OrderPage() {
   };
 
   const parsedQuantity = Number(quantity);
-  const shippingFee = 16500;
+  // const shippingFee = 16500;
   const totalPrice = products.length > 0 
     ? products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
     : (product ? product.price * parsedQuantity : 0);
-  const totalPayment = totalPrice + shippingFee;
+  const totalPayment = totalPrice;
 
   console.log('[OrderPage] Rendering with state:', { 
     authLoading, 
@@ -590,7 +582,7 @@ export default function OrderPage() {
             )}
 
             {/* Phương thức vận chuyển */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Phương thức vận chuyển</h2>
               <select
                 value={shippingMethod}
@@ -600,7 +592,7 @@ export default function OrderPage() {
                 <option value="Nhanh">Nhanh (16,500 VND)</option>
                 <option value="Tiết kiệm">Tiết kiệm (8,000 VND)</option>
               </select>
-            </div>
+            </div> */}
 
             {/* Phương thức thanh toán */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -627,10 +619,10 @@ export default function OrderPage() {
                   <span className="text-gray-600 dark:text-gray-400">Tổng tiền hàng:</span>
                   <span className="text-gray-900 dark:text-white font-medium">{totalPrice.toLocaleString()} VND</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                {/* <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Phí vận chuyển:</span>
                   <span className="text-gray-900 dark:text-white font-medium">{shippingFee.toLocaleString()} VND</span>
-                </div>
+                </div> */}
               </div>
 
               <div className="flex justify-between items-center mt-4 mb-6">
