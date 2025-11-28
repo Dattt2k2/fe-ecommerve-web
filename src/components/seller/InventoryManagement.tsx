@@ -100,15 +100,12 @@ export default function InventoryManagement() {
     ? categoriesData.map((cat: any) => typeof cat === 'string' ? cat : cat.name)
     : [];
 
-  // Fetch products from API via proxy
-  const fetchProducts = async () => { // Fetch products from API via proxy
+  const fetchProducts = async () => { 
     setLoading(true);
     setError(null);
     try {
-      // Use centralized apiClient which attaches Authorization and will attempt refresh on 401
       const data = await apiClient.get<any>('/api/products?user=true');
       
-      // Check for token expiration
       const bodyErr = data && (data.error || data.message || data.msg);
       if (typeof bodyErr === 'string' && /token\s*(is\s*)?expired|expired\s*token/i.test(bodyErr)) {
         forceClientLogout();
@@ -130,7 +127,6 @@ export default function InventoryManagement() {
     fetchProducts();
   }, []);
 
-  // Filter and sort products
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,7 +163,6 @@ export default function InventoryManagement() {
 
 
 
-  // Handle file selection for image upload (multiple images)
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));

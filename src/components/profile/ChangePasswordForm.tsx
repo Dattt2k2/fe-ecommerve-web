@@ -157,7 +157,6 @@ export default function ChangePasswordForm() {
               />
             </div>
 
-            {/* Xác nhận mật khẩu */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
                 <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

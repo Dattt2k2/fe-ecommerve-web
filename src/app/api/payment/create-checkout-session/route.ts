@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${frontendUrl}/checkout/success?order_id=${orderId}`,
+      success_url: `${frontendUrl}/my-orders`,
       cancel_url: `${frontendUrl}/order?productId=${orderId}`,
       metadata: {
         order_id: orderId,
