@@ -13,17 +13,17 @@ export default function Home() {
   const router = useRouter();
   
 
-  useEffect(() => {
-    if (loading) return;
+  // useEffect(() => {
+  //   if (loading) return;
 
-    if (isAuthenticated && user) {
-      const userRole = user.role?.toLowerCase();
-      if (userRole === 'admin' || userRole === 'seller') {
-        router.replace('/seller');
-        return;
-      }
-    }
-  }, [user, loading, isAuthenticated, router]);
+  //   if (isAuthenticated && user) {
+  //     const userRole = user.role?.toLowerCase();
+  //     if (userRole === 'admin' || userRole === 'seller') {
+  //       router.replace('/seller');
+  //       return;
+  //     }
+  //   }
+  // }, [user, loading, isAuthenticated, router]);
 
 
   const { data: bestSellerResponse, loading: bestSellerLoading } = useBestSeller();
@@ -65,12 +65,12 @@ export default function Home() {
   }, [bestSellerResponse]);
 
 
-  if (!loading && isAuthenticated && user) {
-    const userRole = user.role?.toLowerCase();
-    if (userRole === 'admin' || userRole === 'seller') {
-      return null;
-    }
-  }
+  // if (!loading && isAuthenticated && user) {
+  //   const userRole = user.role?.toLowerCase();
+  //   if (userRole === 'admin' || userRole === 'seller') {
+  //     return null;
+  //   }
+  // }
 
   if (bestSellerLoading || loading) {
     return (

@@ -36,7 +36,6 @@ export async function POST(
       'Authorization': authHeader,
     };
 
-    // Backend endpoint: /order/cancel/:order_id
     const backendUrl = `${BACKEND_URL}/order/cancel/${orderId}`;
     console.log(`[API /orders/cancel/${orderId}] Calling backend: ${backendUrl}`);
 

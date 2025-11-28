@@ -57,6 +57,8 @@ export default function SellerOrdersPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [totalRevenueState, setTotalRevenueState] = useState<number>(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -304,16 +306,47 @@ export default function SellerOrdersPage() {
     }
   };
 
+  // Handler để hiển thị modal xác nhận
+  const handleCancelClick = (orderId: string) => {
+    setOrderToCancel(orderId);
+    setShowConfirmModal(true);
+  };
+
   // Dedicated cancel handler so UI buttons call cancel endpoint explicitly
   const cancelOrder = async (orderId: string) => {
     try {
       console.log('[SellerOrders] Cancelling order:', orderId);
-      const resp = await apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(orderId));
+      
+      // Dùng Next.js API route để tránh CORS issues
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      if (!token) {
+        setError('Vui lòng đăng nhập');
+        return;
+      }
+
+      // Gọi qua Next.js API route
+      const response = await fetch(`/api/orders/cancel/${orderId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to cancel order' }));
+        throw new Error(errorData.error || 'Failed to cancel order');
+      }
+
+      const resp = await response.json();
       console.log('[SellerOrders] Cancel API response:', resp);
       fetchOrders();
-    } catch (err) {
+      setShowConfirmModal(false);
+      setOrderToCancel(null);
+    } catch (err: any) {
       console.error('[SellerOrders] Cancel order error:', err);
-      setError('Không thể hủy đơn hàng');
+      setError(err.message || 'Không thể hủy đơn hàng');
     }
   };
 
@@ -532,7 +565,7 @@ export default function SellerOrdersPage() {
                         )}
                         {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'SHIPPED' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                           <button
-                            onClick={() => cancelOrder(order.id || '')}
+                            onClick={() => handleCancelClick(order.id || '')}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
                           >
                             Hủy
@@ -606,7 +639,7 @@ export default function SellerOrdersPage() {
                   )}
                   {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'SHIPPED' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                     <button
-                      onClick={() => { cancelOrder(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
+                      onClick={() => { handleCancelClick(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
                       className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
                     >
                       ✕ Hủy đơn hàng
@@ -694,6 +727,46 @@ export default function SellerOrdersPage() {
               >
                 Đóng
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && orderToCancel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Hủy đơn hàng
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Bạn chắc chắn muốn hủy đơn hàng này?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setOrderToCancel(null);
+                  }}
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  Không
+                </button>
+                <button
+                  onClick={async () => {
+                    if (orderToCancel) {
+                      await cancelOrder(orderToCancel);
+                    }
+                  }}
+                  className="px-6 py-2 rounded-lg text-white font-medium transition bg-red-600 hover:bg-red-700"
+                >
+                  Hủy đơn hàng
+                </button>
+              </div>
             </div>
           </div>
         </div>

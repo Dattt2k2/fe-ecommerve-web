@@ -133,7 +133,6 @@ export function middleware(request: NextRequest) {
     }
   }
   
-  // Check if accessing home page or user-only routes (profile, orders, cart, etc.)
   const isHomePage = request.nextUrl.pathname === '/' || request.nextUrl.pathname === '';
   const isUserOnlyRoute = 
     request.nextUrl.pathname.startsWith('/profile') ||
@@ -141,8 +140,8 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/cart') ||
     request.nextUrl.pathname.startsWith('/checkout') ||
     request.nextUrl.pathname.startsWith('/payment') ||
-    request.nextUrl.pathname.startsWith('/my-orders') ||
-    request.nextUrl.pathname.startsWith('/products');
+    request.nextUrl.pathname.startsWith('/my-orders')
+    // request.nextUrl.pathname.startsWith('/products');
   
   // Block admin/seller from accessing home page and user-only routes
   if ((isHomePage || isUserOnlyRoute) && token) {
@@ -150,15 +149,13 @@ export function middleware(request: NextRequest) {
       // Verify the token
       const payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
       
-      // Get role from user_type (backend field) or role field
       const userType = payload.user_type || payload.role;
       const userRole = userType?.toLowerCase();
       
-      // If user is admin or seller, redirect to seller page
-      if (userRole === 'admin' || userRole === 'seller') {
-        console.log(`[Middleware] Admin/Seller (${userRole}) trying to access ${isHomePage ? 'home page' : 'user route'}, redirecting to /seller`);
-        return NextResponse.redirect(new URL('/seller', request.url));
-      }
+      // if (userRole === 'admin' || userRole === 'seller') {
+      //   console.log(`[Middleware] Admin/Seller (${userRole}) trying to access ${isHomePage ? 'home page' : 'user route'}, redirecting to /seller`);
+      //   return NextResponse.redirect(new URL('/seller', request.url));
+      // }
     } catch (error) {
       // Invalid token, continue normally (will be handled by page-level auth)
       console.log(`[Middleware] Token verification failed for user route:`, error);

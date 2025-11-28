@@ -8,24 +8,21 @@ export default function HomePageGuard({ children }: { children: React.ReactNode 
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    // Wait for auth to finish loading
-    if (loading) {
-      return;
-    }
+  // useEffect(() => {
+  //    if (loading) {
+  //     return;
+  //   }
 
-    // If user is authenticated and is admin or seller, redirect to seller
-    if (isAuthenticated && user) {
-      const userRole = user.role?.toLowerCase();
-      if (userRole === 'admin' || userRole === 'seller') {
-        console.log('[HomePageGuard] Admin/Seller detected, redirecting to /seller');
-        router.replace('/seller');
-        return;
-      }
-    }
-  }, [user, loading, isAuthenticated, router]);
+  //   if (isAuthenticated && user) {
+  //     const userRole = user.role?.toLowerCase();
+  //     if (userRole === 'admin' || userRole === 'seller') {
+  //       console.log('[HomePageGuard] Admin/Seller detected, redirecting to /seller');
+  //       router.replace('/seller');
+  //       return;
+  //     }
+  //   }
+  // }, [user, loading, isAuthenticated, router]);
 
-  // Show loading while checking
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -38,12 +35,12 @@ export default function HomePageGuard({ children }: { children: React.ReactNode 
   }
 
   // If user is admin/seller, don't render (redirect will happen)
-  if (isAuthenticated && user) {
-    const userRole = user.role?.toLowerCase();
-    if (userRole === 'admin' || userRole === 'seller') {
-      return null;
-    }
-  }
+  // if (isAuthenticated && user) {
+  //   const userRole = user.role?.toLowerCase();
+  //   if (userRole === 'admin' || userRole === 'seller') {
+  //     return null;
+  //   }
+  // }
 
   return <>{children}</>;
 }

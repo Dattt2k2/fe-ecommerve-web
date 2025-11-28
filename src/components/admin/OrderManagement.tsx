@@ -140,6 +140,12 @@ export default function OrderManagement() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    orderId: string;
+    newStatus: string;
+    oldStatus: string;
+  } | null>(null);
 
   // Normalize status from backend format to frontend format
   const normalizeStatus = (s: any): string => {
@@ -286,6 +292,21 @@ export default function OrderManagement() {
     setFilteredOrders(filtered);
   };
 
+  const handleStatusChange = (orderId: string, newStatus: string, oldStatus: string) => {
+    // Các status update trực tiếp (không cần modal)
+    updateOrderStatus(orderId, newStatus);
+  };
+
+  const handleCancelOrder = (orderId: string, currentStatus: string) => {
+    // Hiển thị modal xác nhận khi click button hủy
+    setConfirmAction({
+      orderId,
+      newStatus: 'cancelled',
+      oldStatus: currentStatus,
+    });
+    setShowConfirmModal(true);
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       // Map frontend status to backend format
@@ -298,11 +319,37 @@ export default function OrderManagement() {
       };
       
       const backendStatus = statusMap[newStatus] || newStatus.toUpperCase();
-      await apiClient.post(`/orders/${orderId}/update-status`, { status: backendStatus });
+      
+      // Nếu là cancelled, gọi cancel API endpoint
+      if (newStatus === 'cancelled') {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        if (!token) {
+          setError('Vui lòng đăng nhập');
+          return;
+        }
+
+        const response = await fetch(`/api/orders/cancel/${orderId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to cancel order' }));
+          throw new Error(errorData.error || 'Failed to cancel order');
+        }
+      } else {
+        // Các status khác dùng update-status endpoint
+        await apiClient.post(`/orders/${orderId}/update-status`, { status: backendStatus });
+      }
+      
       await fetchOrders(); // Refresh orders list
     } catch (err: any) {
       console.error('Error updating order status:', err);
-      setError('Không thể cập nhật trạng thái đơn hàng');
+      setError(err.message || 'Không thể cập nhật trạng thái đơn hàng');
     }
   };
 
@@ -608,9 +655,17 @@ export default function OrderManagement() {
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
+                          {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                            <button
+                              onClick={() => handleCancelOrder(order.id, order.status)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+                            >
+                              Hủy
+                            </button>
+                          )}
                           <select
                             value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value, order.status)}
                             className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"
                           >
                             <option value="pending">Chờ xử lý</option>
@@ -641,6 +696,65 @@ export default function OrderManagement() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Hủy đơn hàng
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Bạn chắc chắn muốn hủy đơn hàng này?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    // Reset dropdown về status cũ bằng cách update lại order trong state
+                    setOrders(prevOrders => 
+                      prevOrders.map(order => 
+                        order.id === confirmAction.orderId 
+                          ? { ...order, status: confirmAction.oldStatus as any }
+                          : order
+                      )
+                    );
+                    setFilteredOrders(prevFiltered => 
+                      prevFiltered.map(order => 
+                        order.id === confirmAction.orderId 
+                          ? { ...order, status: confirmAction.oldStatus as any }
+                          : order
+                      )
+                    );
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  Không
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateOrderStatus(confirmAction.orderId, confirmAction.newStatus);
+                      setShowConfirmModal(false);
+                      setConfirmAction(null);
+                    } catch (error) {
+                      console.error('Error cancelling order:', error);
+                    }
+                  }}
+                  className="px-6 py-2 rounded-lg text-white font-medium transition bg-red-600 hover:bg-red-700"
+                >
+                  Hủy đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
