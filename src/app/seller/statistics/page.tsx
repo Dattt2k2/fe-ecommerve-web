@@ -27,6 +27,8 @@ export default function SellerStatisticsPage() {
 	const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 	const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
 
+	const [chartData, setChartData] = useState<Array<{ month: string; revenue: number }>>([]);
+
 	useEffect(() => {
 		const fetchStatistics = async () => {
 			try {
@@ -80,6 +82,18 @@ export default function SellerStatisticsPage() {
 					setCustomersChange(usersStats.growth_percentage || 0);
 				} catch (usersErr: any) {
 					console.error('[SellerStatistics] Failed to fetch users statistics:', usersErr);
+				}
+
+				try {
+					const revenueStats = await ordersAPI.getRevenue(selectedMonth, selectedYear);
+					if (revenueStats.revenues && Array.isArray(revenueStats.revenues)) {
+						setChartData(revenueStats.revenues.map(r => ({
+							month: monthNames[r.month - 1],
+							revenue: r.revenue
+						})));
+					}
+				} catch (revenueErr: any) {
+					console.error('[SellerStatistics] Failed to fetch revenue statistics:', revenueErr);
 				}
 			} catch (err: any) {
 				console.error('[SellerStatistics] Failed to fetch statistics:', err);
@@ -181,7 +195,11 @@ export default function SellerStatisticsPage() {
 							className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
 						>
 							<option value="">Tất cả các năm</option>
-							{/* Add year options here */}
+							{years.map((year) => (
+								<option key={year} value={year}>
+									{year}
+								</option>
+							))}
 						</select>
 					</div>
 					<button
@@ -198,7 +216,7 @@ export default function SellerStatisticsPage() {
 
 			{/* Stats Cards */}
 			{loading ? (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
 					{[...Array(4)].map((_, i) => (
 						<div key={i} className="bg-gradient-to-r from-gray-300 to-gray-400 rounded-xl shadow-lg p-6 animate-pulse">
 							<div className="h-24 bg-white/30 rounded"></div>
@@ -206,28 +224,28 @@ export default function SellerStatisticsPage() {
 					))}
 				</div>
 			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 w-full">
 					{stats.map((stat, index) => {
 						const Icon = stat.icon;
 						const isPositive = stat.change >= 0;
 						return (
 							<div
 								key={index}
-								className={`bg-gradient-to-r ${stat.color} rounded-xl shadow-lg p-6 flex items-center gap-4 hover:scale-[1.02] transition-transform`}
+								className={`bg-gradient-to-r ${stat.color} rounded-xl shadow-lg p-5 md:p-6 flex items-center gap-4 hover:scale-[1.02] transition-transform`}
 							>
-								<div className="bg-white/30 rounded-full p-3">
-									<Icon className="w-8 h-8 text-white" />
+								<div className="bg-white/30 rounded-full p-2.5 md:p-3 flex-shrink-0">
+									<Icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
 								</div>
-								<div className="flex-1">
-									<div className="text-white/80 mb-1 text-sm">{stat.title}</div>
-									<div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-									<div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-green-100' : 'text-red-100'}`}>
+								<div className="flex-1 min-w-0">
+									<div className="text-white/80 mb-1 text-xs md:text-sm font-medium truncate">{stat.title}</div>
+									<div className="text-base md:text-lg lg:text-xl font-bold text-white mb-1">{stat.value}</div>
+									<div className={`flex items-center gap-1 text-[10px] md:text-xs ${isPositive ? 'text-green-100' : 'text-red-100'}`}>
 										{isPositive ? (
-											<ArrowUp className="w-10 h-10" />
+											<ArrowUp className="w-3 h-3 flex-shrink-0" />
 										) : (
-											<ArrowDown className="w-10 h-10" />
+											<ArrowDown className="w-3 h-3 flex-shrink-0" />
 										)}
-										<span>{Math.abs(stat.change)}% so với tháng trước</span>
+										<span className="truncate">{Math.abs(stat.change)}% so với tháng trước</span>
 									</div>
 								</div>
 							</div>
@@ -239,10 +257,7 @@ export default function SellerStatisticsPage() {
 			{/* Revenue Chart */}
 			<div className="mb-8">
 				<SellerRevenueChart 
-					currentRevenue={totalRevenue}
-					previousRevenue={previousRevenue}
-					currentMonth={currentMonth}
-					currentYear={currentYear}
+					chartData={chartData}
 					loading={loading}
 				/>
 			</div>

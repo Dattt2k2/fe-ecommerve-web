@@ -44,72 +44,44 @@ export default function OrderPage() {
 
   let isMounted = true;
 
-  const storedItems = sessionStorage.getItem('checkoutItems');
-  const fetchStoredProducts = async () => {
-    if (storedItems) {
-      try {
-        const selectedItems = JSON.parse(storedItems);
-        console.log('[OrderPage] Found items in sessionStorage:', selectedItems);
-        
-        const productPromises = selectedItems.map(async (item: any) => {
-          try {
-            const response = await fetch(`/api/products/${item.id}`);
-            if (!response.ok) throw new Error('Failed to fetch product');
-            const productData = await response.json();
-            return {
-              id: item.id,
-              name: productData.name || item.name,
-              price: productData.price || item.price,
-              category: productData.category,
-              image: productData.image || item.image,
-              quantity: item.quantity || 1,
-            };
-          } catch (error) {
-            console.error('Error fetching product:', error);
-            return {
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              category: '',
-              image: item.image,
-              quantity: item.quantity || 1,
-            };
-          }
-        });
-        
-        const fetchedProducts = await Promise.all(productPromises);
-        if (isMounted) {
-          setProducts(fetchedProducts);
-          if (fetchedProducts.length > 0) {
-            setProduct({
-              name: fetchedProducts[0].name,
-              price: fetchedProducts[0].price,
-              category: fetchedProducts[0].category,
-              image: fetchedProducts[0].image,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing stored items:', error);
-      }
-    }
-  };
-
   const fetchProduct = async () => {
+    if (!productId) return;
+    
     try {
-      console.log('[OrderPage] Fetching product:', productId);
+      console.log('[OrderPage] Fetching product from API:', productId);
       const response = await fetch(`/api/products/${productId}`);
       if (!response.ok) throw new Error('Failed to fetch product');
       const data = await response.json();
+      
+      const getImageUrl = (imagePath: any): string => {
+        if (!imagePath) return '';
+        
+        if (Array.isArray(imagePath)) {
+          return imagePath.length > 0 ? imagePath[0] : '';
+        }
+        
+        if (typeof imagePath === 'string') {
+          return imagePath;
+        }
+        
+        return '';
+      };
+      
+      const imageUrl = getImageUrl(data.image_path || data.image);
+      
       if (isMounted) {
-        setProduct(data);
-        // Set products array for consistency
+        setProduct({
+          name: data.name,
+          price: data.price,
+          category: data.category,
+          image: imageUrl,
+        });
         setProducts([{
           id: productId || '',
           name: data.name,
           price: data.price,
           category: data.category,
-          image: data.image,
+          image: imageUrl,
           quantity: Number(quantity),
         }]);
       }
@@ -118,6 +90,74 @@ export default function OrderPage() {
         console.error('Error fetching product:', error);
         showError('Không thể tải thông tin sản phẩm');
       }
+    }
+  };
+
+  const fetchStoredProducts = async () => {
+    const storedItems = sessionStorage.getItem('checkoutItems');
+    if (!storedItems) return;
+    
+    try {
+      const selectedItems = JSON.parse(storedItems);
+      console.log('[OrderPage] Found items in sessionStorage:', selectedItems);
+      
+      const productPromises = selectedItems.map(async (item: any) => {
+        try {
+          const response = await fetch(`/api/products/${item.id}`);
+          if (!response.ok) throw new Error('Failed to fetch product');
+          const productData = await response.json();
+          
+          const getImageUrl = (imagePath: any): string => {
+            if (!imagePath) return item.image || '';
+            
+            if (Array.isArray(imagePath)) {
+              return imagePath.length > 0 ? imagePath[0] : (item.image || '');
+            }
+            
+            if (typeof imagePath === 'string') {
+              return imagePath;
+            }
+            
+            return item.image || '';
+          };
+          
+          const imageUrl = getImageUrl(productData.image_path || productData.image);
+          
+          return {
+            id: item.id,
+            name: productData.name || item.name,
+            price: productData.price || item.price,
+            category: productData.category,
+            image: imageUrl,
+            quantity: item.quantity || 1,
+          };
+        } catch (error) {
+          console.error('Error fetching product:', error);
+          return {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            category: '',
+            image: item.image || '',
+            quantity: item.quantity || 1,
+          };
+        }
+      });
+      
+      const fetchedProducts = await Promise.all(productPromises);
+      if (isMounted) {
+        setProducts(fetchedProducts);
+        if (fetchedProducts.length > 0) {
+          setProduct({
+            name: fetchedProducts[0].name,
+            price: fetchedProducts[0].price,
+            category: fetchedProducts[0].category,
+            image: fetchedProducts[0].image,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing stored items:', error);
     }
   };
 
@@ -189,10 +229,11 @@ export default function OrderPage() {
     tasks.push(fetchUserInfo());
     tasks.push(fetchUserAddress());
 
-    if (storedItems) {
-      tasks.push(fetchStoredProducts());
-    } else if (productId) {
+    if (productId) {
+      sessionStorage.removeItem('checkoutItems');
       tasks.push(fetchProduct());
+    } else {
+      tasks.push(fetchStoredProducts());
     }
 
     try {
@@ -209,7 +250,7 @@ export default function OrderPage() {
     isMounted = false;
     console.log('[OrderPage] Cleanup - unmounted');
   };
-}, [authUser, authLoading, productId]);
+}, [authUser, authLoading, productId, quantity]);
 
 
   const handleOrder = async () => {
@@ -433,7 +474,7 @@ export default function OrderPage() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Thanh Toán</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Đặt hàng</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

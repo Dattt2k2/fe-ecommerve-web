@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
     CANCEL_ORDER: (orderId: string) => `/api/orders/cancel/${orderId}`, 
     STATISTICS: '/api/orders/statistics', 
     USER_ORDER_COUNT: (id: string) => `/api/orders/${id}/count`, 
+    REVENUE: '/api/orders/revenue', 
   },
   USERS: {
     LIST: USE_INTERNAL_API ? '/me' : '/me',
@@ -799,8 +800,23 @@ export const ordersAPI = {
     return apiClient.get(`${API_ENDPOINTS.ORDERS.STATISTICS}${queryString ? `?${queryString}` : ''}`);
   },
 
-    getUserOrdersCount: (userId: string): Promise<{ shipped_order_count: number; total_price: number }> => 
-      apiClient.post(API_ENDPOINTS.ORDERS.USER_ORDER_COUNT(userId), {}),
+  getUserOrdersCount: (userId: string): Promise<{ shipped_order_count: number; total_price: number }> => 
+    apiClient.post(API_ENDPOINTS.ORDERS.USER_ORDER_COUNT(userId), {}),
+
+  // Get revenue for multiple months
+  getRevenue: (month?: number, year?: number): Promise<{
+    revenues: Array<{
+      year: number;
+      month: number;
+      revenue: number;
+    }>;
+  }> => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const queryString = params.toString();
+    return apiClient.get(`${API_ENDPOINTS.ORDERS.REVENUE}${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const usersAPI = {

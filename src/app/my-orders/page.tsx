@@ -259,7 +259,7 @@ export default function MyOrdersPage() {
             <p className="text-gray-600 dark:text-gray-400">Theo dõi và quản lý đơn hàng của bạn</p>
           </div>
           <Link 
-            href="/"
+            href="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -588,7 +588,7 @@ export default function MyOrdersPage() {
                   onClick={async () => {
                     try {
                       if (confirmAction.type === 'cancel') {
-                        await apiClient.post(`/orders/cancel/${confirmAction.orderId}`, {});
+                        await apiClient.post(API_ENDPOINTS.ORDERS.CANCEL_ORDER(confirmAction.orderId), {});
                         showSuccess('Đơn hàng đã được hủy');
                       } else {
                         await apiClient.post(`/orders/${confirmAction.orderId}/update-status`, {
