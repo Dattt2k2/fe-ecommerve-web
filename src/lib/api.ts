@@ -24,9 +24,9 @@ export const API_ENDPOINTS = {
     LIST: USE_INTERNAL_API ? '/products' : '/products',
     BEST_SELLER: USE_INTERNAL_API ? '/products/best-selling' : '/products/best-selling',
     DETAIL: (id: string) => USE_INTERNAL_API ? `/products-info/${id}` : `/products-info/${id}`,
-    CREATE: USE_INTERNAL_API ? '/products' : '/seller/products',
-    UPDATE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
-    DELETE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/seller/products/${id}`,
+    CREATE: USE_INTERNAL_API ? '/products' : '/api/seller/products',
+    UPDATE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/api/seller/products/${id}`,
+    DELETE: (id: string) => USE_INTERNAL_API ? `/products/${id}` : `/api/seller/products/${id}`,
     SEARCH: USE_INTERNAL_API ? '/products/search' : '/products/search',
     ADVANCED_SEARCH: USE_INTERNAL_API ? '/products/advanced-search' : '/products/advanced-search',
     CATEGORIES: USE_INTERNAL_API ? '/products/categories' : '/products/categories',
@@ -737,6 +737,62 @@ export const productsAPI = {
       return {
         products: Array.isArray(productArray) ? productArray : [],
       };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getProductsByCategory: async (categoryName: string, params?: Record<string, any>): Promise<{ products: Product[]; pagination: any }> => {
+    // Encode category name for URL
+    const encodedCategoryName = encodeURIComponent(categoryName);
+    
+    // Build query string from params
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/api/products/by-category/${encodedCategoryName}${queryString ? `?${queryString}` : ''}`;
+    
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Handle different response structures
+      const productsArray = Array.isArray(data.data) ? data.data : (data.products || []);
+      const total = data.total || data.pagination?.total || 0;
+      const currentPage = data.page || data.pagination?.page || 1;
+      const limit = data.limit || data.pagination?.limit || 10;
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+      
+      return {
+        products: productsArray,
+        pagination: {
+          page: currentPage,
+          total: total,
+          pages: totalPages,
+          has_next: data.has_next || data.pagination?.has_next || false,
+          has_prev: data.has_prev || data.pagination?.has_prev || false
+        }
+      };
+      
     } catch (error) {
       throw error;
     }

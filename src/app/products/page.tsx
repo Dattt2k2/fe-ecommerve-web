@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/product/ProductCard';
 import { Product } from '@/types';
 import { Filter, Grid, List, Search } from 'lucide-react';
@@ -9,11 +10,14 @@ import { useProducts, useCategoryList, useAdvancedSearch } from '@/hooks/useApi'
 
 export default function ProductsPage() {
   const { showError } = useToast();
+  const urlSearchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('name');
   const [filterBy, setFilterBy] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState([0, 60000000]);
+  const [priceInputMin, setPriceInputMin] = useState('');
+  const [priceInputMax, setPriceInputMax] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(9);
   const [totalProducts, setTotalProducts] = useState(0);
@@ -25,6 +29,27 @@ export default function ProductsPage() {
       typeof cat === 'string' ? { id: cat, name: cat } : { id: cat.id, name: cat.name }
     )
   : [];
+
+  // Get category name from URL params
+  const categoryNameFromUrl = useMemo(() => {
+    const categoryParam = urlSearchParams.get('category');
+    return categoryParam ? decodeURIComponent(categoryParam) : null;
+  }, [urlSearchParams]);
+
+  // Read category from URL params and set filterBy
+  useEffect(() => {
+    if (categoryNameFromUrl) {
+      // Find category by name
+      const foundCategory = categories.find(
+        (cat) => cat.name.toLowerCase() === categoryNameFromUrl.toLowerCase()
+      );
+      if (foundCategory) {
+        setFilterBy(String(foundCategory.id));
+      }
+    } else {
+      setFilterBy('all');
+    }
+  }, [categoryNameFromUrl, categories]);
 
   // Calculate products per page based on screen size
   useEffect(() => {
@@ -58,6 +83,12 @@ export default function ProductsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filterBy, searchQuery, priceRange, sortBy]);
+
+  // Sync input state with priceRange when it changes externally
+  useEffect(() => {
+    setPriceInputMin(priceRange[0] > 0 ? formatPrice(priceRange[0]) : '');
+    setPriceInputMax(priceRange[1] < 60000000 ? formatPrice(priceRange[1]) : '');
+  }, [priceRange]);
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -135,6 +166,7 @@ export default function ProductsPage() {
     return result;
   }, [shouldUseSearchAdvanced, apiParams]);
 
+  // Always use regular/search APIs (advanced-search when filters are applied)
   const { data: regularResponse, loading: regularLoading } = useProducts(regularParams);
   const { data: searchResponse, loading: searchLoading } = useAdvancedSearch(searchParams);
 
@@ -202,6 +234,25 @@ export default function ProductsPage() {
     return Math.ceil(totalProducts / productsPerPage) || 1;
   }, [productsResponse?.pagination, productsPerPage, totalProducts]);
 
+  // Helper function to format number with dots
+  const formatPrice = (price: number): string => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Helper function to parse formatted price
+  const parsePrice = (formattedPrice: string): number => {
+    return parseInt(formattedPrice.replace(/\./g, '')) || 0;
+  };
+
+  // Helper function to format input while typing
+  const formatInputPrice = (value: string): string => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    if (!digitsOnly) return '';
+    // Format with dots
+    return formatPrice(parseInt(digitsOnly));
+  };
+
   if (productsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -247,25 +298,6 @@ export default function ProductsPage() {
                   </div>
                 </div> */}
 
-                {/* Categories */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    Danh mục
-                  </h3>
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  >
-                    <option value="all">Tất cả</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={String(category.id)}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 {/* Price Range */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
@@ -274,19 +306,58 @@ export default function ProductsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <input
-                        type="number"
+                        type="text"
                         placeholder="Từ"
-                        value={priceRange[0]}
-                        onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full"
+                        value={priceInputMin}
+                        onChange={(e) => {
+                          const formatted = formatInputPrice(e.target.value);
+                          setPriceInputMin(formatted);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const parsed = parsePrice(e.currentTarget.value);
+                            setPriceRange([parsed, priceRange[1]]);
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parsePrice(e.target.value);
+                          setPriceRange([parsed, priceRange[1]]);
+                          if (parsed > 0) {
+                            setPriceInputMin(formatPrice(parsed));
+                          } else {
+                            setPriceInputMin('');
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-full"
                       />
                       <span className="text-gray-500">-</span>
                       <input
-                        type="number"
+                        type="text"
                         placeholder="Đến"
-                        value={priceRange[1]}
-                        onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 0])}
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full"
+                        value={priceInputMax}
+                        onChange={(e) => {
+                          const formatted = formatInputPrice(e.target.value);
+                          setPriceInputMax(formatted);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const parsed = parsePrice(e.currentTarget.value);
+                            setPriceRange([priceRange[0], parsed || 60000000]);
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parsePrice(e.target.value);
+                          const finalValue = parsed || 60000000;
+                          setPriceRange([priceRange[0], finalValue]);
+                          if (finalValue < 60000000) {
+                            setPriceInputMax(formatPrice(finalValue));
+                          } else {
+                            setPriceInputMax('');
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-full"
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -298,7 +369,11 @@ export default function ProductsPage() {
                       ].map((preset) => (
                         <button
                           key={preset.label}
-                          onClick={() => setPriceRange(preset.range)}
+                          onClick={() => {
+                            setPriceRange(preset.range);
+                            setPriceInputMin(preset.range[0] > 0 ? formatPrice(preset.range[0]) : '');
+                            setPriceInputMax(preset.range[1] < 60000000 ? formatPrice(preset.range[1]) : '');
+                          }}
                           className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
                         >
                           {preset.label}
@@ -308,7 +383,11 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                <button className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-orange-500 text-gray-900 dark:text-gray-100 ml-auto" onClick={() => setPriceRange([0, 60000000])}>
+                <button className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-orange-500 text-gray-900 dark:text-gray-100 ml-auto" onClick={() => {
+                  setPriceRange([0, 60000000]);
+                  setPriceInputMin('');
+                  setPriceInputMax('');
+                }}>
                   Xóa bộ lọc
                 </button>
                 </div>

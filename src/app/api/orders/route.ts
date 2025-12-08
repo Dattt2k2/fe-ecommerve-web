@@ -21,7 +21,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
     }
 
-    console.log('[API /orders] Proxying GET request to backend:', `${BACKEND_URL}/admin/orders`);
+    // Get query params for pagination and filters
+    const searchParams = request.nextUrl.searchParams;
+    const page = searchParams.get('page') || '1';
+    const limit = searchParams.get('limit') || '10';
+    const status = searchParams.get('status');
+    
+    // Build query string
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('limit', limit);
+    if (status) {
+      queryParams.append('status', status);
+    }
+    
+    const backendUrl = `${BACKEND_URL}/admin/orders?${queryParams.toString()}`;
+    console.log('[API /orders] Proxying GET request to backend:', backendUrl);
 
     // Build headers for backend request
     const forwardHeaders: Record<string, string> = {
@@ -30,7 +45,7 @@ export async function GET(request: NextRequest) {
       'Authorization': authHeader,
     };
 
-    const response = await fetch(`${BACKEND_URL}/admin/orders`, {
+    const response = await fetch(backendUrl, {
       method: 'GET',
       headers: forwardHeaders,
     });

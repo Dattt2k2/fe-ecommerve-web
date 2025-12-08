@@ -35,6 +35,8 @@ interface Order {
   UpdatedAt?: string;
   shippingAddress?: string;
   ShippingAddress?: string;
+  shipping_info?: string | { user_name?: string; phone?: string };
+  ShippingInfo?: string | { user_name?: string; phone?: string };
   customerEmail?: string;
   CustomerEmail?: string;
   deliveryDate?: string;
@@ -52,8 +54,12 @@ export default function SellerOrdersPage() {
   // Use uppercase constants for filter state to match normalized order.status
   const [filter, setFilter] = useState<'all' | 'PENDING' | 'PROCESSING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED' | 'SHIPPED'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<number | null >(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [totalRevenueState, setTotalRevenueState] = useState<number>(0);
@@ -203,6 +209,18 @@ export default function SellerOrdersPage() {
         createdAt: order.CreatedAt || order.created_at || order.CreatedAt,
         updatedAt: order.UpdatedAt || order.updated_at || order.UpdatedAt,
         shippingAddress: order.ShippingAddress || order.shipping_address || order.shippingAddress,
+        shipping_info: (() => {
+          const shippingInfo = order.ShippingInfo || order.shipping_info;
+          if (!shippingInfo) return undefined;
+          if (typeof shippingInfo === 'string') {
+            try {
+              return JSON.parse(shippingInfo);
+            } catch {
+              return shippingInfo;
+            }
+          }
+          return shippingInfo;
+        })(),
         customerEmail: order.CustomerEmail || order.customer_email || order.customerEmail,
         deliveryDate: order.delivery_date || order.deliveryDate,
         paymentReleaseDate: order.payment_release_date || order.paymentReleaseDate,
@@ -211,6 +229,43 @@ export default function SellerOrdersPage() {
       }));
       
       console.log('[SellerOrders] Normalized orders:', normalizedOrders);
+      
+      // Extract pagination info
+      console.log('[SellerOrders] Response pagination data:', { 
+        hasPagination: !!data?.pagination, 
+        hasPage: data?.page !== undefined, 
+        hasTotal: data?.total !== undefined,
+        total: data?.total,
+        page: data?.page,
+        limit: data?.limit,
+        has_next: data?.has_next,
+        has_prev: data?.has_prev
+      });
+      
+      if (data?.pagination) {
+        setTotalPages(data.pagination.pages || 1);
+        setTotalOrders(data.pagination.total || 0);
+        setHasNext(data.pagination.has_next || false);
+        setHasPrev(data.pagination.has_prev || false);
+      } else if (data?.page !== undefined || data?.total !== undefined) {
+        // Response has pagination fields at root level
+        const total = data.total || normalizedOrders.length;
+        const limit = data.limit || 10;
+        const currentPageNum = data.page || currentPage;
+        const pages = Math.ceil(total / limit) || 1;
+        setTotalPages(pages);
+        setTotalOrders(total);
+        setHasNext(data.has_next !== undefined ? data.has_next : (currentPageNum < pages));
+        setHasPrev(data.has_prev !== undefined ? data.has_prev : (currentPageNum > 1));
+        console.log('[SellerOrders] Pagination set:', { total, pages, has_next: data.has_next, has_prev: data.has_prev, currentPage: currentPageNum });
+      } else {
+        // Default pagination if not provided
+        setTotalPages(1);
+        setTotalOrders(normalizedOrders.length);
+        setHasNext(false);
+        setHasPrev(false);
+      }
+      
       // Extract total revenue if provided by backend (supports both snake_case and camelCase)
       const revenueFromApi = (typeof data === 'object' && data !== null) ? (data.total_revenue ?? data.totalRevenue ?? data.revenue ?? null) : null;
       if (typeof revenueFromApi === 'number') {
@@ -231,6 +286,11 @@ export default function SellerOrdersPage() {
       setLoading(false);
     }
   }, [currentPage, filter, selectedMonth, selectedYear]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, selectedMonth, selectedYear]);
 
   useEffect(() => {
     console.log('[SellerOrders] useEffect triggered - isAuthenticated:', isAuthenticated, 'user:', user?.id);
@@ -451,7 +511,7 @@ export default function SellerOrdersPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tháng:</label>
             <select
-              value={selectedMonth || ''}
+              value={selectedMonth ?? ''}
               onChange={(e) => setSelectedMonth(e.target.value ? parseInt(e.target.value) : null)}
               className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
             >
@@ -467,11 +527,10 @@ export default function SellerOrdersPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Năm:</label>
             <select
-              value={selectedYear || ''}
-              onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : new Date().getFullYear())}
               className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">Tất cả các năm</option>
               {Array.from({ length: 5 }, (_, i) => {
                 const year = new Date().getFullYear() - i;
                 return (
@@ -483,11 +542,11 @@ export default function SellerOrdersPage() {
             </select>
           </div>
 
-          {(selectedMonth !== null || selectedYear !== null) && (
+          {(selectedMonth !== new Date().getMonth() + 1 || selectedYear !== new Date().getFullYear()) && (
             <button
               onClick={() => {
-                setSelectedMonth(null);
-                setSelectedYear(null);
+                setSelectedMonth(new Date().getMonth() + 1);
+                setSelectedYear(new Date().getFullYear());
               }}
               className="px-4 py-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white rounded-lg font-medium transition-colors"
             >
@@ -529,7 +588,14 @@ export default function SellerOrdersPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredOrders.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{(order.id || 'N/A').slice(0, 8)}...</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400">
+                          {order.id || order.OrderID || order.ID || 'N/A'}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Mã đơn hàng</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                       {order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} sản phẩm
                     </td>
@@ -579,6 +645,74 @@ export default function SellerOrdersPage() {
             </table>
           </div>
         )}
+        
+        {/* Pagination */}
+        {totalOrders > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Hiển thị {((currentPage - 1) * 10) + 1} - {Math.min(currentPage * 10, totalOrders)} trong tổng số {totalOrders} đơn hàng
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    console.log('[SellerOrders] Previous page, current:', currentPage);
+                    setCurrentPage(Math.max(1, currentPage - 1));
+                  }}
+                  disabled={!hasPrev || currentPage === 1}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Trước
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    if (pageNum < 1 || pageNum > totalPages) return null;
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          console.log('[SellerOrders] Click page:', pageNum, 'totalPages:', totalPages);
+                          setCurrentPage(pageNum);
+                        }}
+                        className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-primary text-white'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    console.log('[SellerOrders] Next page, current:', currentPage, 'totalPages:', totalPages);
+                    setCurrentPage(Math.min(totalPages, currentPage + 1));
+                  }}
+                  disabled={!hasNext || currentPage === totalPages}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Sau
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modal Chi tiết đơn hàng */}
@@ -594,10 +728,12 @@ export default function SellerOrdersPage() {
           >
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-800">
-              {/* Mã đơn hàng */}
-              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Mã đơn hàng</label>
-                <p className="text-lg font-mono font-semibold text-white mt-1 break-all">{expandedOrder.id}</p>
+              {/* Mã đơn hàng - Nổi bật */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg p-6 border border-blue-400 shadow-lg">
+                <label className="text-xs font-semibold text-blue-100 uppercase tracking-wide mb-2 block">Mã đơn hàng</label>
+                <p className="text-2xl font-mono font-bold text-white break-all">
+                  {expandedOrder.id || expandedOrder.OrderID || expandedOrder.ID || 'N/A'}
+                </p>
               </div>
 
               {/* Trạng thái với Buttons */}
@@ -659,7 +795,30 @@ export default function SellerOrdersPage() {
               {/* Thông tin giao hàng */}
               <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3 block">Địa chỉ giao hàng</label>
-                <p className="text-white font-medium leading-relaxed">{expandedOrder.shippingAddress || 'N/A'}</p>
+                <p className="text-white font-medium leading-relaxed mb-3">{expandedOrder.shippingAddress || 'N/A'}</p>
+                
+                {/* Shipping Info */}
+                {expandedOrder.shipping_info && (
+                  <div className="mt-4 pt-4 border-t border-slate-600">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-2 block">Thông tin người nhận</label>
+                    {typeof expandedOrder.shipping_info === 'object' && expandedOrder.shipping_info !== null ? (
+                      <div className="space-y-2">
+                        {expandedOrder.shipping_info.user_name && (
+                          <p className="text-white font-medium">
+                            <span className="text-slate-400">Tên:</span> {expandedOrder.shipping_info.user_name}
+                          </p>
+                        )}
+                        {expandedOrder.shipping_info.phone && (
+                          <p className="text-white font-medium">
+                            <span className="text-slate-400">Số điện thoại:</span> {expandedOrder.shipping_info.phone}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-white font-medium">{String(expandedOrder.shipping_info)}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Danh sách sản phẩm */}
@@ -671,7 +830,12 @@ export default function SellerOrdersPage() {
                       <div key={idx} className="flex justify-between items-center pb-3 border-b border-slate-600 last:border-b-0 last:pb-0">
                         <div className="flex-1">
                           <p className="font-semibold text-white text-sm">{item.name || 'Sản phẩm'}</p>
-                          <p className="text-xs text-slate-400 mt-1">Số lượng: <span className="font-semibold">{item.quantity || 0}</span></p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm text-slate-300">
+                              Mã SP: <span className="font-mono font-bold text-blue-400 text-base">{item.productId || item.ProductID || 'N/A'}</span>
+                            </p>
+                            <p className="text-sm text-slate-400">Số lượng: <span className="font-semibold">{item.quantity || 0}</span></p>
+                          </div>
                         </div>
                         <p className="font-bold text-orange-400 ml-4 text-sm">{formatPrice(item.price || 0)}</p>
                       </div>

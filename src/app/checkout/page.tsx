@@ -137,6 +137,10 @@ export default function CheckoutPage() {
           note: formData.note,
           paymentMethod: formData.paymentMethod,
           totalAmount: total,
+          shipping_info: JSON.stringify({
+            user_name: formData.fullName || '',
+            phone: formData.phone || '',
+          }),
         }),
         mode: 'cors',
       });

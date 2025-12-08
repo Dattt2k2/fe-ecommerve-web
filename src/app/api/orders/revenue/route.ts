@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
         authHeader = `Bearer ${tokenMatch[1]}`;
       }
     }
-
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
     }

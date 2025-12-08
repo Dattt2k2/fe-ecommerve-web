@@ -96,6 +96,21 @@ export function useBestSeller() {
   }, []);
 }
 
+export function useProductsByCategory(categoryName: string | null, params?: any) {
+  const memoizedParams = useMemo(() => params, [JSON.stringify(params)]);
+  const shouldSkip = !categoryName;
+  
+  return useApi(
+    () => {
+      if (shouldSkip) {
+        return Promise.resolve({ products: [], pagination: { page: 1, total: 0, pages: 1, has_next: false, has_prev: false } });
+      }
+      return productsAPI.getProductsByCategory(categoryName, memoizedParams);
+    },
+    [categoryName, JSON.stringify(memoizedParams), shouldSkip]
+  );
+}
+
 // Orders hooks
 export function useOrders(params?: any) {
   return useApi(() => ordersAPI.getOrders(params), [params]);

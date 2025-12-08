@@ -304,6 +304,10 @@ export default function OrderPage() {
           note: '',
           paymentMethod: paymentMethodMap[paymentMethod] || paymentMethod,
           totalAmount: totalPrice,
+          shipping_info: userInfo ? JSON.stringify({
+            user_name: userInfo.name || '',
+            phone: userInfo.phone || '',
+          }) : undefined,
         };
 
         const typedResponse = await apiClient.post('/api/orders/cart', orderData) as any;
@@ -379,6 +383,10 @@ export default function OrderPage() {
         source: 'direct_purchase',
         payment_method: paymentMethodMap[paymentMethod] || paymentMethod,
         shipping_address: shippingAddress,
+        shipping_info: userInfo ? JSON.stringify({
+          user_name: userInfo.name || '',
+          phone: userInfo.phone || '',
+        }) : undefined,
       });
 
       const typedResponse = response as any;
