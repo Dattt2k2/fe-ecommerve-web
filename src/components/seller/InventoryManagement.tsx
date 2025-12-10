@@ -95,10 +95,16 @@ export default function InventoryManagement() {
   // Fetch categories from API
   const { data: categoriesData, loading: categoriesLoading, refetch: refetchCategories } = useCategoryList();
   
-  // Extract categories from API response
+  // Extract categories from API response - keep full objects for code lookup
   const categories = Array.isArray(categoriesData)
-    ? categoriesData.map((cat: any) => typeof cat === 'string' ? cat : cat.name)
+    ? categoriesData.map((cat: any) => typeof cat === 'string' ? { name: cat, code: '' } : { name: cat.name, code: cat.code || '', id: cat.id })
     : [];
+  
+  // Helper function to get category code by name
+  const getCategoryCode = (categoryName: string): string => {
+    const category = categories.find((cat: any) => cat.name === categoryName);
+    return category?.code || '';
+  };
 
   const fetchProducts = async () => { 
     setLoading(true);
@@ -281,12 +287,13 @@ export default function InventoryManagement() {
       }
       
       // Send only S3 keys in image_path (backend will convert to full URLs)
+      // When editing, keep the original category from editingProduct
       const productData = {
         name: formData.name,
         description: formData.description,
         price: formData.price,
         quantity: formData.quantity,
-        category: formData.category,
+        category: editingProduct ? editingProduct.category : formData.category,
         status: formData.status,
         image_path: imageKeys
       };
@@ -302,25 +309,10 @@ export default function InventoryManagement() {
         ? { id: editingProduct.id, ...productData }
         : productData;
       
-      const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(url, {
-        method: editingProduct ? 'PUT' : 'POST',
-        headers,
-        body: JSON.stringify(productPayload),
-      });
-
-      if (!response.ok) {
-        const errorMsg = 'Không thể lưu sản phẩm';
-        showError(errorMsg);
-        throw new Error(errorMsg);
+      if (editingProduct) {
+        await apiClient.put(url, productPayload);
+      } else {
+        await apiClient.post(url, productPayload);
       }
 
       // Refresh products list
@@ -441,19 +433,7 @@ export default function InventoryManagement() {
     if (!productToDelete) return;
     
     try {
-      const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {};
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`/api/products?id=${productToDelete.id}`, {
-        method: 'DELETE',
-        headers,
-      });
-      
-      if (!response.ok) throw new Error('Failed to delete product');
+      await apiClient.delete(`/api/products?id=${productToDelete.id}`);
       
       await fetchProducts();
       showSuccess('Xóa sản phẩm thành công!');
@@ -572,8 +552,10 @@ export default function InventoryManagement() {
             className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="all">{categoriesLoading ? 'Đang tải...' : 'Tất cả danh mục'}</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
+            {categories.map((category: any) => (
+              <option key={category.name || category.id || category} value={category.name || category}>
+                {category.name || category}
+              </option>
             ))}
           </select>
 
@@ -669,7 +651,12 @@ export default function InventoryManagement() {
                       <div>
                         <h3 className="font-medium text-white">{product.name}</h3>
                         <p className="text-sm text-gray-400 mt-1">{product.sku}</p>
-                        <p className="text-xs text-gray-500 mt-1">{product.category}</p>
+                        <div className="text-xs text-gray-500 mt-1">
+                          <p>{product.category}</p>
+                          {product.category && getCategoryCode(product.category) && (
+                            <p className="text-gray-600 mt-0.5">Mã: {getCategoryCode(product.category)}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-white font-medium">
@@ -862,16 +849,21 @@ export default function InventoryManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Danh mục
+                      {editingProduct && (
+                        <span className="ml-2 text-xs text-gray-500">(Không thể chỉnh sửa)</span>
+                      )}
                     </label>
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      disabled={categoriesLoading}
+                      disabled={categoriesLoading || editingProduct !== null}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">{categoriesLoading ? 'Đang tải danh mục...' : 'Chọn danh mục'}</option>
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
+                      {categories.map((category: any) => (
+                        <option key={category.name} value={category.name}>
+                          {category.name}{category.code ? ` (${category.code})` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>

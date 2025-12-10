@@ -99,29 +99,8 @@ export default function SellerOrdersPage() {
 
       const apiUrl = `/api/seller/orders?${queryParams.toString()}`;
       console.log('[SellerOrders] Fetching from:', apiUrl);
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('[SellerOrders] Response status:', response.status);
-
-      if (response.status === 401) {
-        forceClientLogout();
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errMsg = errorData?.message || errorData?.error || `Lỗi ${response.status}`;
-        console.error('[SellerOrders] Error:', errMsg);
-        setError(errMsg);
-        return;
-      }
-
-      const data = await response.json();
+      
+      const data: any = await apiClient.get(apiUrl);
       console.log('[SellerOrders] Data received:', data);
       
       // Handle different response structures
@@ -377,29 +356,8 @@ export default function SellerOrdersPage() {
     try {
       console.log('[SellerOrders] Cancelling order:', orderId);
       
-      // Dùng Next.js API route để tránh CORS issues
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      if (!token) {
-        setError('Vui lòng đăng nhập');
-        return;
-      }
-
-      // Gọi qua Next.js API route
-      const response = await fetch(`/api/orders/cancel/${orderId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to cancel order' }));
-        throw new Error(errorData.error || 'Failed to cancel order');
-      }
-
-      const resp = await response.json();
+      // Gọi qua Next.js API route với apiClient để xử lý token expiration
+      const resp = await apiClient.post(`/api/orders/cancel/${orderId}`, {});
       console.log('[SellerOrders] Cancel API response:', resp);
       fetchOrders();
       setShowConfirmModal(false);

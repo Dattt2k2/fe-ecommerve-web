@@ -187,7 +187,7 @@ export function useDeleteProduct() {
 
 // Category mutations
 export function useCreateCategory() {
-  return useMutation((name: string) => productsAPI.createCategory(name));
+  return useMutation((data: { name: string; code: string }) => productsAPI.createCategory(data.name, data.code));
 }
 
 export function useDeleteCategory() {

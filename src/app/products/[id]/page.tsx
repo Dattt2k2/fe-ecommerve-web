@@ -8,6 +8,7 @@ import { useToast } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { Product } from '@/types';
+import { apiClient } from '@/lib/api';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -183,20 +184,9 @@ export default function ProductDetailPage() {
     }
     
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-      const localToken = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('access_token')) : null;
-      if (localToken) headers['Authorization'] = localToken.startsWith('Bearer ') ? localToken : `Bearer ${localToken}`;
+      const result: any = await apiClient.post(`/api/proxy/products/create-reviews/${params.id}`, newReview);
 
-      const response = await fetch(`/api/proxy/products/create-reviews/${params.id}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(newReview),
-        credentials: 'include', // ensure cookies are sent to proxy
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (result.error) {
         if (result.error === 'user has not purchased this product') {
           alert('Bạn phải mua sản phẩm này trước khi có thể đánh giá.');
         } else {
@@ -205,7 +195,7 @@ export default function ProductDetailPage() {
         return;
       }
 
-      setReviews((prev) => [...prev, result]);
+      setReviews((prev) => [...prev, result as any]);
       setNewReview({ rating: 0, body_review: '' });
       showSuccess('Đánh giá đã được gửi thành công!');
     } catch (error) {

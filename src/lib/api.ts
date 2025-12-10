@@ -217,14 +217,16 @@ class ApiClient {
       if (response.status === 401) {
         const isLoginEndpoint = url.includes('/login') || url.includes('/register');
         const isReviewGetRequest = url.includes('/review/') && config.method === 'GET';
+        // Public endpoints that don't require auth - exclude endpoints with user=true or seller
         const isPublicEndpoint = url.includes('/api/products/get/category') || url.includes('/api/products/category') || 
-                                 (url.includes('/api/products') && config.method === 'GET' && !url.includes('/seller'));
+                                 (url.includes('/api/products') && config.method === 'GET' && !url.includes('/seller') && !url.includes('user=true'));
         
         console.log('[ApiClient] 401 Error:', {
           url,
           method: config.method,
           isLoginEndpoint,
-          isReviewGetRequest
+          isReviewGetRequest,
+          isPublicEndpoint
         });
         
         if (!isLoginEndpoint && !isReviewGetRequest && !isPublicEndpoint) {
@@ -468,6 +470,7 @@ export function forceClientLogout() {
   }
 }
 
+
 // Export configuration for debugging
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
@@ -637,8 +640,8 @@ export const productsAPI = {
     return response?.data || (Array.isArray(response) ? response : []);
   },
   
-  createCategory: (name: string): Promise<{ id: string; name: string }> => 
-    apiClient.post(API_ENDPOINTS.PRODUCTS.CATEGORY_CREATE, { name }),
+  createCategory: (name: string, code: string): Promise<{ id: string; name: string }> => 
+    apiClient.post(API_ENDPOINTS.PRODUCTS.CATEGORY_CREATE, { name, code }),
   
   deleteCategory: (id: string): Promise<{ message: string }> => 
     apiClient.delete(API_ENDPOINTS.PRODUCTS.CATEGORY_DELETE(id)),

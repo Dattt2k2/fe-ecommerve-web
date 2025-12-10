@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { Order, Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { apiClient } from '@/lib/apiClient';
+import { apiClient as apiClientMain } from '@/lib/api';
 
 // Mock orders data
 const mockOrders: (Order & { customerName: string; customerEmail: string })[] = [
@@ -322,25 +323,7 @@ export default function OrderManagement() {
       
       // Nếu là cancelled, gọi cancel API endpoint
       if (newStatus === 'cancelled') {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-        if (!token) {
-          setError('Vui lòng đăng nhập');
-          return;
-        }
-
-        const response = await fetch(`/api/orders/cancel/${orderId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({}),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to cancel order' }));
-          throw new Error(errorData.error || 'Failed to cancel order');
-        }
+        await apiClientMain.post(`/api/orders/cancel/${orderId}`, {});
       } else {
         // Các status khác dùng update-status endpoint
         await apiClient.post(`/orders/${orderId}/update-status`, { status: backendStatus });

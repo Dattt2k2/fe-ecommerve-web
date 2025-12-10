@@ -70,10 +70,16 @@ export default function ProductManagement() {
   const products: Product[] = apiResponse?.data || apiResponse?.products || [];
   const totalProducts = apiResponse?.total || products.length || 0;
   const totalPages = Math.ceil(totalProducts / itemsPerPage);
-  // Extract categories from API response - handle both array of objects and array of strings
+  // Extract categories from API response - keep full objects for code lookup
   const categories = Array.isArray(categoriesData)
-    ? categoriesData.map((cat: any) => typeof cat === 'string' ? cat : cat.name)
+    ? categoriesData.map((cat: any) => typeof cat === 'string' ? { name: cat, code: '' } : { name: cat.name, code: cat.code || '', id: cat.id })
     : [];
+  
+  // Helper function to get category code by name
+  const getCategoryCode = (categoryName: string): string => {
+    const category = categories.find((cat: any) => cat.name === categoryName);
+    return category?.code || '';
+  };
 
   // Handle delete product
   const handleDeleteClick = (product: Product) => {

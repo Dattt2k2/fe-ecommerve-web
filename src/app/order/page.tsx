@@ -323,30 +323,21 @@ export default function OrderPage() {
             
             const amountToCharge = totalPrice;
             
-            const sessionResponse = await fetch('/api/payment/create-checkout-session', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                orderId,
-                amount: amountToCharge,
-                email: authUser?.email || '',
-                items: products.map(p => ({
-                  product_id: p.id,
-                  name: p.name,
-                  price: p.price,
-                  quantity: p.quantity,
-                })),
-              }),
+            const sessionData: any = await apiClient.post('/api/payment/create-checkout-session', {
+              orderId,
+              amount: amountToCharge,
+              email: authUser?.email || '',
+              items: products.map(p => ({
+                product_id: p.id,
+                name: p.name,
+                price: p.price,
+                quantity: p.quantity,
+              })),
             });
 
-            if (!sessionResponse.ok) {
-              const error = await sessionResponse.json();
-              throw new Error(error.error || 'Failed to create checkout session');
+            if (sessionData.error) {
+              throw new Error(sessionData.error || 'Failed to create checkout session');
             }
-
-            const sessionData = await sessionResponse.json();
             console.log('Checkout session created:', sessionData);
             
             if (sessionData.url) {
@@ -404,37 +395,28 @@ export default function OrderPage() {
           const amountToCharge = totalPrice;
           
           // Create Stripe checkout session
-          const sessionResponse = await fetch('/api/payment/create-checkout-session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              orderId,
-              amount: amountToCharge,
-              email: authUser?.email || '',
-              items: products.length > 0
-                ? products.map(p => ({
-                    product_id: p.id,
-                    name: p.name,
-                    price: p.price,
-                    quantity: p.quantity,
-                  }))
-                : (product && productId ? [{
-                    product_id: productId,
-                    name: product.name,
-                    price: product.price,
-                    quantity: Number(quantity),
-                  }] : []),
-            }),
+          const sessionData: any = await apiClient.post('/api/payment/create-checkout-session', {
+            orderId,
+            amount: amountToCharge,
+            email: authUser?.email || '',
+            items: products.length > 0
+              ? products.map(p => ({
+                  product_id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  quantity: p.quantity,
+                }))
+              : (product && productId ? [{
+                  product_id: productId,
+                  name: product.name,
+                  price: product.price,
+                  quantity: Number(quantity),
+                }] : []),
           });
 
-          if (!sessionResponse.ok) {
-            const error = await sessionResponse.json();
-            throw new Error(error.error || 'Failed to create checkout session');
+          if (sessionData.error) {
+            throw new Error(sessionData.error || 'Failed to create checkout session');
           }
-
-          const sessionData = await sessionResponse.json();
           console.log('Checkout session created:', sessionData);
 
           // Redirect to Stripe Checkout

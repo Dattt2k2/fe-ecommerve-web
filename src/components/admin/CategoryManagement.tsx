@@ -3,14 +3,17 @@
 import { useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useCategoryList, useCreateCategory, useDeleteCategory } from '@/hooks/useApi';
+import { useToast } from '@/context/ToastContext';
 
 interface CategoryManagementProps {
   onCategoriesChange?: () => void;
 }
 
 export default function CategoryManagement({ onCategoriesChange }: CategoryManagementProps) {
+  const { showError, showSuccess } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryCode, setNewCategoryCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -38,15 +41,26 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
       return;
     }
 
+    if (!newCategoryCode.trim()) {
+      setError('Vui lòng nhập mã danh mục');
+      return;
+    }
+
     try {
       setError(null);
-      await createCategory(newCategoryName.trim());
+      // Chuyển code về chữ hoa trước khi gửi request
+      const codeUpperCase = newCategoryCode.trim().toUpperCase();
+      await createCategory({ name: newCategoryName.trim(), code: codeUpperCase });
       setNewCategoryName('');
+      setNewCategoryCode('');
       setShowAddModal(false);
       refetch();
       onCategoriesChange?.();
+      showSuccess('Thêm danh mục thành công!');
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra khi thêm danh mục');
+      const errorMsg = err.message || 'Có lỗi xảy ra khi thêm danh mục';
+      setError(errorMsg);
+      showError(errorMsg);
     }
   };
 
@@ -69,8 +83,62 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
       onCategoriesChange?.();
       setShowDeleteModal(false);
       setCategoryToDelete(null);
+      showSuccess('Xóa danh mục thành công!');
     } catch (err: any) {
-      alert('Có lỗi xảy ra khi xóa danh mục: ' + (err.message || 'Unknown error'));
+      // Parse error message để lấy thông tin chi tiết
+      let errorMessage = 'Có lỗi xảy ra khi xóa danh mục';
+      
+      try {
+        // Thử parse error message nếu là JSON string
+        const errorStr = err.message || String(err);
+        let parsedError: any = {};
+        
+        try {
+          parsedError = JSON.parse(errorStr);
+        } catch {
+          // Nếu không parse được, thử parse từ error object
+          if (err.error) {
+            parsedError = err.error;
+          } else {
+            parsedError = { error: errorStr };
+          }
+        }
+        
+        // Xử lý nested error object: { error: { error: "..." } }
+        let errorText = '';
+        if (parsedError.error) {
+          if (typeof parsedError.error === 'string') {
+            errorText = parsedError.error;
+          } else if (parsedError.error.error) {
+            errorText = parsedError.error.error;
+          } else if (parsedError.error.message) {
+            errorText = parsedError.error.message;
+          }
+        } else if (parsedError.message) {
+          errorText = parsedError.message;
+        } else {
+          errorText = errorStr;
+        }
+        
+        // Kiểm tra lỗi có chứa thông tin về sản phẩm đang sử dụng category
+        if (typeof errorText === 'string') {
+          // Tìm số lượng sản phẩm trong thông báo lỗi
+          const productMatch = errorText.match(/(\d+)\s*product/i);
+          if (productMatch) {
+            const productCount = productMatch[1];
+            errorMessage = `Không thể xóa danh mục "${categoryToDelete.name}" vì có ${productCount} sản phẩm đang sử dụng danh mục này. Vui lòng xóa hoặc chuyển các sản phẩm sang danh mục khác trước.`;
+          } else if (errorText.includes('reference') || errorText.includes('đang sử dụng') || errorText.includes('cannot delete')) {
+            errorMessage = `Không thể xóa danh mục "${categoryToDelete.name}" vì có sản phẩm đang sử dụng danh mục này. Vui lòng xóa hoặc chuyển các sản phẩm sang danh mục khác trước.`;
+          } else {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseErr) {
+        // Nếu không parse được, dùng message mặc định
+        errorMessage = err.message || 'Có lỗi xảy ra khi xóa danh mục';
+      }
+      
+      showError(errorMessage);
       setShowDeleteModal(false);
       setCategoryToDelete(null);
     }
@@ -119,15 +187,23 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
             // Handle different category formats
             const categoryId = category.id || category.category_id || category._id || `category-${index}`;
             const categoryName = category.name || category.category_name || category.title || String(category) || 'Unnamed Category';
+            const categoryCode = category.code || category.category_code || '';
             
             return (
               <div
                 key={categoryId}
                 className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
-                <span className="text-gray-900 dark:text-white font-medium">
-                  {categoryName}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {categoryName}
+                  </span>
+                  {categoryCode && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Mã: {categoryCode}
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => handleDeleteClick(categoryId, categoryName)}
                   disabled={deleteLoading}
@@ -154,6 +230,7 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
                 onClick={() => {
                   setShowAddModal(false);
                   setNewCategoryName('');
+                  setNewCategoryCode('');
                   setError(null);
                 }}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -182,6 +259,27 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
                 placeholder="Nhập tên danh mục"
                 autoFocus
               />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mã danh mục *
+              </label>
+              <input
+                type="text"
+                value={newCategoryCode}
+                onChange={(e) => {
+                  setNewCategoryCode(e.target.value);
+                  setError(null);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddCategory();
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Nhập mã danh mục"
+              />
               {error && (
                 <p className="text-red-500 text-xs mt-1">{error}</p>
               )}
@@ -192,6 +290,7 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
                 onClick={() => {
                   setShowAddModal(false);
                   setNewCategoryName('');
+                  setNewCategoryCode('');
                   setError(null);
                 }}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -200,7 +299,7 @@ export default function CategoryManagement({ onCategoriesChange }: CategoryManag
               </button>
               <button
                 onClick={handleAddCategory}
-                disabled={createLoading || !newCategoryName.trim()}
+                disabled={createLoading || !newCategoryName.trim() || !newCategoryCode.trim()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createLoading ? 'Đang thêm...' : 'Thêm'}
