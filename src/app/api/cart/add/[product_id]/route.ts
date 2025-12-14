@@ -17,16 +17,23 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const productId = params.product_id;
+    // The param is actually variant_id now (or product_id if no variant)
+    const variantId = params.product_id;
     
-    const response = await fetch(`${API_BASE_URL}/api/user/cart/add/${productId}`, {
+    // Get quantity from request body
+    const body = await request.json();
+    const quantity = body.quantity || 1;
+    
+    // Forward to backend: use variant_id in URL path
+    const response = await fetch(`${API_BASE_URL}/api/user/cart/add/${variantId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': authHeader,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        quantity: quantity,
+      }),
       cache: 'no-store',
     });
 

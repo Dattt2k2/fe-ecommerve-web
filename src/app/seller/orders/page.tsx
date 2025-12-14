@@ -22,6 +22,12 @@ interface Order {
     Price?: number;
     name?: string;
     Name?: string;
+    variant_id?: string;
+    variantId?: string;
+    size?: string;
+    Size?: string;
+    color?: string;
+    Color?: string;
   }>;
   totalPrice?: number;
   TotalPrice?: number;
@@ -150,6 +156,9 @@ export default function SellerOrdersPage() {
           quantity: item.Quantity || item.quantity || 0,
           price: item.Price || item.price || 0,
           name: item.Name || item.name,
+          variant_id: item.variant_id || item.variantId || item.VariantID,
+          size: item.size || item.Size,
+          color: item.color || item.Color,
         })),
         totalPrice: order.TotalPrice || order.total_price || order.totalPrice || 0,
         // Normalize status variants so UI shows correct badge (e.g. CANCELED -> CANCELLED)
@@ -790,9 +799,26 @@ export default function SellerOrdersPage() {
                           <p className="font-semibold text-white text-sm">{item.name || 'Sản phẩm'}</p>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm text-slate-300">
-                              Mã SP: <span className="font-mono font-bold text-blue-400 text-base">{item.productId || item.ProductID || 'N/A'}</span>
+                              Mã Sản phẩm: <span className="font-mono font-bold text-blue-400 text-base">{item.productId || item.ProductID || 'N/A'}</span>
                             </p>
-                            <p className="text-sm text-slate-400">Số lượng: <span className="font-semibold">{item.quantity || 0}</span></p>
+                            {item.variant_id && (
+                              <p className="text-sm text-slate-300">
+                                Loại sản phẩm: <span className="font-mono font-bold text-purple-400 text-base">{item.variant_id}</span>
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-sm text-slate-400">Số lượng: <span className="font-semibold">{item.quantity || 0}</span></p>
+                              {item.size && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                                  Size: {item.size}
+                                </span>
+                              )}
+                              {item.color && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                                  Màu: {item.color}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <p className="font-bold text-orange-400 ml-4 text-sm">{formatPrice(item.price || 0)}</p>

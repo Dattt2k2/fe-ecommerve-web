@@ -204,8 +204,19 @@ export default function ProductsPage() {
         return '/images/placeholder.jpg';
       };
       
+      // Compute price and stock from variants if available
+      let price = item.price || 0;
+      let stock = item.stock || item.quantity || 0;
+      
+      if (item.variants && Array.isArray(item.variants) && item.variants.length > 0) {
+        price = Math.min(...item.variants.map((v: any) => v.price || 0));
+        stock = item.variants.reduce((sum: number, v: any) => sum + (v.quantity || 0), 0);
+      }
+      
       const mappedProduct = {
         ...item,
+        price: price,
+        stock: stock,
         image: getValidImageUrl(item.image_path || item.image),
         images: Array.isArray(item.image_path) 
           ? item.image_path.filter((url: any) => typeof url === 'string' && url)

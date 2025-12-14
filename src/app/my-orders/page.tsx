@@ -11,6 +11,9 @@ interface OrderItem {
   name: string;
   quantity: number;
   price: number;
+  variant_id?: string;
+  size?: string;
+  color?: string;
 }
 
 interface Order {
@@ -45,7 +48,6 @@ export default function MyOrdersPage() {
     message: string;
   } | null>(null);
 
-  // fetchOrders extracted so other handlers/effects can trigger refresh
   const fetchOrders = useCallback(async (page: number = 1) => {
     try {
       if (authLoading) {
@@ -83,6 +85,9 @@ export default function MyOrdersPage() {
           name: item.name,
           quantity: item.quantity,
           price: item.price,
+          variant_id: item.variant_id,
+          size: item.size,
+          color: item.color,
         })),
         source: order.Source || order.source,
         payment_method: order.PaymentMethod || order.payment_method,
@@ -406,7 +411,19 @@ export default function MyOrdersPage() {
                           <div key={item.product_id} className="flex items-center justify-between text-sm">
                             <div>
                               <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
-                              <p className="text-gray-600 dark:text-gray-400">Số lượng: {item.quantity}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <p className="text-gray-600 dark:text-gray-400">Số lượng: {item.quantity}</p>
+                                {item.size && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                                    Size: {item.size}
+                                  </span>
+                                )}
+                                {item.color && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                    Màu: {item.color}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className="font-semibold text-gray-900 dark:text-white">
                               {(item.price * item.quantity).toLocaleString()} VND

@@ -15,9 +15,10 @@ export default function OrderPage() {
 
   const productId = searchParams.get('productId');
   const quantity = searchParams.get('quantity') || 1;
+  const variantId = searchParams.get('variant_id');
 
-  const [products, setProducts] = useState<Array<{ id: string; name: string; price: number; category?: string; image?: string; quantity: number }>>([]);
-  const [product, setProduct] = useState<{ name: string; price: number; category?: string; image?: string } | null>(null);
+  const [products, setProducts] = useState<Array<{ id: string; name: string; price: number; category?: string; image?: string; quantity: number; variant_id?: string; size?: string; color?: string }>>([]);
+  const [product, setProduct] = useState<{ name: string; price: number; category?: string; image?: string; variant_id?: string; size?: string; color?: string } | null>(null);
   const [userInfo, setUserInfo] = useState<{ name: string; phone: string } | null>(null);
   const [addresses, setAddresses] = useState<Array<{ id: string; address: string }>>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
@@ -69,20 +70,52 @@ export default function OrderPage() {
       
       const imageUrl = getImageUrl(data.image_path || data.image);
       
+      // Get price from variant if available, otherwise use product price
+      let productPrice = data.price || 0;
+      let selectedVariantId: string | undefined = undefined;
+      let selectedSize: string | undefined = undefined;
+      let selectedColor: string | undefined = undefined;
+      
+      if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+        // Get variant_id from URL params if available
+        const variantIdFromUrl = searchParams.get('variant_id');
+        if (variantIdFromUrl) {
+          const selectedVariant = data.variants.find((v: any) => v.id === variantIdFromUrl);
+          if (selectedVariant) {
+            productPrice = selectedVariant.price || productPrice;
+            selectedVariantId = variantIdFromUrl;
+            selectedSize = selectedVariant.size;
+            selectedColor = selectedVariant.color;
+          } else {
+            // Fallback to min price if variant not found
+            productPrice = Math.min(...data.variants.map((v: any) => v.price || 0));
+          }
+        } else {
+          // No variant selected, use min price
+          productPrice = Math.min(...data.variants.map((v: any) => v.price || 0));
+        }
+      }
+      
       if (isMounted) {
         setProduct({
           name: data.name,
-          price: data.price,
+          price: productPrice,
           category: data.category,
           image: imageUrl,
+          variant_id: selectedVariantId,
+          size: selectedSize,
+          color: selectedColor,
         });
         setProducts([{
           id: productId || '',
           name: data.name,
-          price: data.price,
+          price: productPrice,
           category: data.category,
           image: imageUrl,
-          quantity: Number(quantity),
+          quantity: Number(quantity) || 1,
+          variant_id: selectedVariantId,
+          size: selectedSize,
+          color: selectedColor,
         }]);
       }
     } catch (error) {
@@ -123,23 +156,51 @@ export default function OrderPage() {
           
           const imageUrl = getImageUrl(productData.image_path || productData.image);
           
+          // Get price from variant if available
+          let itemPrice = productData.price || item.price || 0;
+          let itemVariantId = item.variant_id;
+          let itemSize: string | undefined = item.size;
+          let itemColor: string | undefined = item.color;
+          
+          if (productData.variants && Array.isArray(productData.variants) && productData.variants.length > 0) {
+            // If item has variant_id, use that variant's price
+            if (item.variant_id) {
+              const selectedVariant = productData.variants.find((v: any) => v.id === item.variant_id);
+              if (selectedVariant) {
+                itemPrice = selectedVariant.price || itemPrice;
+                itemVariantId = selectedVariant.id;
+                itemSize = selectedVariant.size || itemSize;
+                itemColor = selectedVariant.color || itemColor;
+              }
+            } else {
+              // Fallback to min price
+              itemPrice = Math.min(...productData.variants.map((v: any) => v.price || 0)) || itemPrice;
+            }
+          }
+          
           return {
             id: item.id,
             name: productData.name || item.name,
-            price: productData.price || item.price,
+            price: itemPrice,
             category: productData.category,
             image: imageUrl,
             quantity: item.quantity || 1,
+            variant_id: itemVariantId,
+            size: itemSize,
+            color: itemColor,
           };
         } catch (error) {
           console.error('Error fetching product:', error);
           return {
             id: item.id,
             name: item.name,
-            price: item.price,
+            price: item.price || 0,
             category: '',
             image: item.image || '',
             quantity: item.quantity || 1,
+            variant_id: item.variant_id,
+            size: item.size,
+            color: item.color,
           };
         }
       });
@@ -150,7 +211,7 @@ export default function OrderPage() {
         if (fetchedProducts.length > 0) {
           setProduct({
             name: fetchedProducts[0].name,
-            price: fetchedProducts[0].price,
+            price: fetchedProducts[0].price || 0,
             category: fetchedProducts[0].category,
             image: fetchedProducts[0].image,
           });
@@ -290,9 +351,12 @@ export default function OrderPage() {
           items: products.map(p => ({
             productId: p.id,
             product_id: p.id,
-            quantity: p.quantity,
-            price: p.price,
+            variant_id: p.variant_id,
+            quantity: p.quantity || 1,
+            price: p.price || 0,
             name: p.name,
+            size: p.size,
+            color: p.color,
           })),
           customerEmail: authUser?.email || '',
           customerName: userInfo?.name || '',
@@ -327,12 +391,12 @@ export default function OrderPage() {
               orderId,
               amount: amountToCharge,
               email: authUser?.email || '',
-              items: products.map(p => ({
-                product_id: p.id,
-                name: p.name,
-                price: p.price,
-                quantity: p.quantity,
-              })),
+            items: products.map(p => ({
+              product_id: p.id,
+              name: p.name,
+              price: p.price || 0,
+              quantity: p.quantity || 1,
+            })),
             });
 
             if (sessionData.error) {
@@ -364,9 +428,12 @@ export default function OrderPage() {
 
       const itemsToOrder = product && productId ? [{
         product_id: productId,
+        variant_id: product.variant_id || variantId || undefined,
         name: product.name,
-        quantity: Number(quantity),
-        price: product.price,
+        quantity: Number(quantity) || 1,
+        price: product.price || 0,
+        size: product.size,
+        color: product.color,
       }] : [];
 
       const response = await apiClient.post(API_ENDPOINTS.ORDERS.ORDER_DIRECT, {
@@ -403,14 +470,14 @@ export default function OrderPage() {
               ? products.map(p => ({
                   product_id: p.id,
                   name: p.name,
-                  price: p.price,
-                  quantity: p.quantity,
+                  price: p.price || 0,
+                  quantity: p.quantity || 1,
                 }))
               : (product && productId ? [{
                   product_id: productId,
                   name: product.name,
-                  price: product.price,
-                  quantity: Number(quantity),
+                  price: product.price || 0,
+                  quantity: Number(quantity) || 1,
                 }] : []),
           });
 
@@ -442,12 +509,12 @@ export default function OrderPage() {
     }
   };
 
-  const parsedQuantity = Number(quantity);
+  const parsedQuantity = Number(quantity) || 1;
   // const shippingFee = 16500;
   const totalPrice = products.length > 0 
-    ? products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
-    : (product ? product.price * parsedQuantity : 0);
-  const totalPayment = totalPrice;
+    ? products.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 1)), 0)
+    : (product ? (product.price || 0) * parsedQuantity : 0);
+  const totalPayment = totalPrice || 0;
 
   console.log('[OrderPage] Rendering with state:', { 
     authLoading, 
@@ -580,10 +647,10 @@ export default function OrderPage() {
                   {(products.length > 0 ? products : (product ? [{
                     id: productId || '',
                     name: product.name,
-                    price: product.price,
+                    price: product.price || 0,
                     category: product.category,
                     image: product.image,
-                    quantity: Number(quantity),
+                    quantity: Number(quantity) || 1,
                   }] : [])).map((item, index) => (
                     <div key={item.id || index} className="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 last:pb-0">
                       {/* Product Image */}
@@ -603,8 +670,10 @@ export default function OrderPage() {
                       </div>
                       {/* Price and Quantity */}
                       <div className="text-right flex-shrink-0">
-                        <p className="font-semibold text-gray-900 dark:text-white">{item.price.toLocaleString()} VND</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">x{item.quantity}</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {(item.price || 0).toLocaleString('vi-VN')} VND
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">x{item.quantity || 1}</p>
                       </div>
                     </div>
                   ))}
@@ -648,7 +717,9 @@ export default function OrderPage() {
               <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Tổng tiền hàng:</span>
-                  <span className="text-gray-900 dark:text-white font-medium">{totalPrice.toLocaleString()} VND</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {(totalPrice || 0).toLocaleString('vi-VN')} VND
+                  </span>
                 </div>
                 {/* <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Phí vận chuyển:</span>
@@ -658,7 +729,9 @@ export default function OrderPage() {
 
               <div className="flex justify-between items-center mt-4 mb-6">
                 <span className="font-semibold text-gray-900 dark:text-white">Tổng thanh toán:</span>
-                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalPayment.toLocaleString()} VND</span>
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {(totalPayment || 0).toLocaleString('vi-VN')} VND
+                </span>
               </div>
 
               <button

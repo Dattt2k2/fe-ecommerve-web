@@ -24,31 +24,43 @@ import { useToast } from '@/context/ToastContext';
 import { useCategoryList } from '@/hooks/useApi';
 import CategoryManagement from '@/components/admin/CategoryManagement';
 
+// Variant structure
+interface Variant {
+  id: string;
+  size: string;
+  color: string;
+  material: string;
+  price: number;
+  cost_price: number;
+  quantity: number;
+  created_at?: string;
+}
+
+// Product structure
 interface Product {
   id: string;
   name: string;
   description?: string;
-  price: number;
-  quantity: number;
   category?: string;
   image_path?: string[];
   sold_count?: number;
-  sku?: string;
   status: 'onsale' | 'offsale' | 'unavailable';
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  variants?: Variant[];
+  // Computed fields for display
+  price?: number; // Min price from variants
+  quantity?: number; // Total quantity from variants
 }
 
 interface ProductFormData {
   name: string;
   description: string;
-  price: number;
-  quantity: number;
   category: string;
-  sold_count: number;
-  sku?: string;
   status: 'onsale' | 'offsale' | 'unavailable';
-  images: string[]; // Keep images array for internal use
+  images: string[];
+  variants: Variant[];
 }
 
 export default function InventoryManagement() {
@@ -77,13 +89,10 @@ export default function InventoryManagement() {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
-    price: 0,
-    quantity: 0,
     category: '',
-    sold_count: 0,
-    sku: '',
     status: 'onsale',
-    images: []
+    images: [],
+    variants: []
   });
   
   // States for image upload
@@ -106,6 +115,15 @@ export default function InventoryManagement() {
     return category?.code || '';
   };
 
+  // Helper function to compute display fields from variants
+  const computeProductDisplayFields = (product: Product): Product => {
+    if (product.variants && product.variants.length > 0) {
+      product.price = Math.min(...product.variants.map(v => v.price));
+      product.quantity = product.variants.reduce((sum, v) => sum + v.quantity, 0);
+    }
+    return product;
+  };
+
   const fetchProducts = async () => { 
     setLoading(true);
     setError(null);
@@ -119,7 +137,15 @@ export default function InventoryManagement() {
       }
       
       const productList = Array.isArray(data) ? data : data?.data ?? [];
-      setProducts(productList);
+      // Ensure variants exist and compute display fields
+      const transformedProducts = productList.map((item: any) => {
+        const product: Product = {
+          ...item,
+          variants: item.variants || []
+        };
+        return computeProductDisplayFields(product);
+      });
+      setProducts(transformedProducts);
     } catch (err: any) {
       const errorMsg = err?.message || 'Lỗi khi tải dữ liệu';
       setError(errorMsg);
@@ -137,7 +163,7 @@ export default function InventoryManagement() {
     let filtered = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+                           product.id.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
       const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
@@ -147,8 +173,8 @@ export default function InventoryManagement() {
 
     // Sort products
     filtered.sort((a, b) => {
-      let aValue: any = a[sortBy];
-      let bValue: any = b[sortBy];
+      let aValue: any = a[sortBy === 'createdAt' ? 'created_at' : sortBy];
+      let bValue: any = b[sortBy === 'createdAt' ? 'created_at' : sortBy];
       
       // Handle undefined values
       if (aValue === undefined) aValue = '';
@@ -275,6 +301,12 @@ export default function InventoryManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate variants
+    if (formData.variants.length === 0) {
+      showError('Vui lòng thêm ít nhất một loại sản phẩm (size, màu sắc)');
+      return;
+    }
+    
     try {
       setUploadingImages(true);
       
@@ -286,28 +318,32 @@ export default function InventoryManagement() {
         imageKeys = [...imageKeys, ...uploadedKeys];
       }
       
-      // Send only S3 keys in image_path (backend will convert to full URLs)
-      // When editing, keep the original category from editingProduct
-      const productData = {
+      // Prepare product payload
+      const now = new Date().toISOString();
+      const productPayload: any = {
         name: formData.name,
         description: formData.description,
-        price: formData.price,
-        quantity: formData.quantity,
-        category: editingProduct ? editingProduct.category : formData.category,
+        category: formData.category,
         status: formData.status,
-        image_path: imageKeys
+        image_path: imageKeys,
+        variants: formData.variants.map(variant => ({
+          id: variant.id || `${editingProduct?.id || 'NEW'}-${variant.size}-${variant.color}`.toUpperCase().replace(/\s+/g, '-'),
+          size: variant.size,
+          color: variant.color,
+          material: variant.material,
+          price: variant.price,
+          cost_price: variant.cost_price,
+          quantity: variant.quantity,
+          created_at: variant.created_at || now
+        }))
       };
 
+      if (editingProduct?.id) {
+        productPayload.id = editingProduct.id;
+      }
 
-      // Save product to API
       // Save product to API via proxy
-      const url = editingProduct 
-        ? '/api/products'
-        : '/api/products';
-      
-      const productPayload = editingProduct 
-        ? { id: editingProduct.id, ...productData }
-        : productData;
+      const url = '/api/products';
       
       if (editingProduct) {
         await apiClient.put(url, productPayload);
@@ -338,13 +374,10 @@ export default function InventoryManagement() {
     setFormData({
       name: '',
       description: '',
-      price: 0,
-      quantity: 0,
       category: '',
-      sold_count: 0,
-      sku: '',
       status: 'onsale',
-      images: []
+      images: [],
+      variants: []
     });
     setEditingProduct(null);
     setSelectedFiles([]);
@@ -407,15 +440,44 @@ export default function InventoryManagement() {
     setFormData({
       name: product.name,
       description: product.description || '',
-      price: product.price,
-      quantity: product.quantity,
       category: product.category || '',
-      sold_count: product.sold_count || 0,
-      sku: product.sku || '',
       status: isValidStatus ? (validStatus as any) : 'onsale',
-      images: displayImages // Store full URLs for display; extract keys on submit
+      images: displayImages, // Store full URLs for display; extract keys on submit
+      variants: product.variants || []
     });
     setShowModal(true);
+  };
+
+  // Variant management functions
+  const addVariant = () => {
+    setFormData(prev => ({
+      ...prev,
+      variants: [...prev.variants, {
+        id: '',
+        size: '',
+        color: '',
+        material: '',
+        price: 0,
+        cost_price: 0,
+        quantity: 0
+      }]
+    }));
+  };
+
+  const updateVariant = (index: number, field: keyof Variant, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: prev.variants.map((v, i) => 
+        i === index ? { ...v, [field]: value } : v
+      )
+    }));
+  };
+
+  const removeVariant = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== index)
+    }));
   };
 
   // Delete product
@@ -650,25 +712,77 @@ export default function InventoryManagement() {
                     <td className="px-4 py-4">
                       <div>
                         <h3 className="font-medium text-white">{product.name}</h3>
-                        <p className="text-sm text-gray-400 mt-1">{product.sku}</p>
+                        <p className="text-xs text-gray-400 mt-1">ID: {product.id}</p>
                         <div className="text-xs text-gray-500 mt-1">
-                          <p>{product.category}</p>
+                          <p className="text-gray-400">{product.category}</p>
                           {product.category && getCategoryCode(product.category) && (
-                            <p className="text-gray-600 mt-0.5">Mã: {getCategoryCode(product.category)}</p>
+                            <p className="text-gray-500 mt-0.5">Mã: {getCategoryCode(product.category)}</p>
                           )}
                         </div>
+                        {product.variants && product.variants.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs font-medium text-gray-400">
+                              {product.variants.length} loại sản phẩm:
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {product.variants.slice(0, 3).map((variant, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-700/50 rounded text-xs text-gray-300"
+                                  title={`Size: ${variant.size}, Màu: ${variant.color}, SL: ${variant.quantity}`}
+                                >
+                                  <span className="font-medium">{variant.size}</span>
+                                  <span className="text-gray-500">•</span>
+                                  <span>{variant.color}</span>
+                                </span>
+                              ))}
+                              {product.variants.length > 3 && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-gray-700/50 rounded text-xs text-gray-400">
+                                  +{product.variants.length - 3} loại khác
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-white font-medium">
-                      {new Intl.NumberFormat('vi-VN', { 
-                        style: 'currency', 
-                        currency: 'VND' 
-                      }).format(product.price)}
+                    <td className="px-4 py-4">
+                      {product.variants && product.variants.length > 0 ? (
+                        <div className="text-white">
+                          <div className="font-medium">
+                            {new Intl.NumberFormat('vi-VN', { 
+                              style: 'currency', 
+                              currency: 'VND' 
+                            }).format(Math.min(...product.variants.map(v => v.price)))}
+                          </div>
+                          {Math.min(...product.variants.map(v => v.price)) !== Math.max(...product.variants.map(v => v.price)) && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              ~ {new Intl.NumberFormat('vi-VN', { 
+                                style: 'currency', 
+                                currency: 'VND' 
+                              }).format(Math.max(...product.variants.map(v => v.price)))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`font-medium ${product.quantity === 0 ? 'text-red-400' : 'text-white'}`}>
-                        {product.quantity}
-                      </span>
+                      <div>
+                        <span className={`font-medium ${(product.quantity || 0) === 0 ? 'text-red-400' : 'text-white'}`}>
+                          {product.quantity || 0}
+                        </span>
+                        {product.variants && product.variants.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {product.variants.filter(v => v.quantity === 0).length > 0 && (
+                              <span className="text-red-400">
+                                {product.variants.filter(v => v.quantity === 0).length} loại hết hàng
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-white font-medium">
@@ -809,39 +923,130 @@ export default function InventoryManagement() {
                   />
                 </div>
 
-                {/* Price and Quantity */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Giá (VND) *
+                {/* Variants Management */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Loại sản phẩm (Size, Màu sắc) *
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.price.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\./g, '');
-                        setFormData(prev => ({ ...prev, price: value ? Number(value) : 0 }));
-                      }}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
+                    <button
+                      type="button"
+                      onClick={addVariant}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Thêm loại sản phẩm
+                    </button>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Số lượng *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\./g, '');
-                        setFormData(prev => ({ ...prev, quantity: value ? Number(value) : 0 }));
-                      }}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+
+                  {formData.variants.length === 0 ? (
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 text-center text-gray-400">
+                      Chưa có loại sản phẩm nào. Vui lòng thêm ít nhất một loại sản phẩm.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {formData.variants.map((variant, index) => (
+                        <div key={index} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-medium text-white">Loại sản phẩm {index + 1}</h4>
+                            <button
+                              type="button"
+                              onClick={() => removeVariant(index)}
+                              className="text-red-400 hover:text-red-300 text-sm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {/* Size */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Size *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.size}
+                                onChange={(e) => updateVariant(index, 'size', e.target.value)}
+                                placeholder="M, L, XL..."
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* Color */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Màu sắc *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.color}
+                                onChange={(e) => updateVariant(index, 'color', e.target.value)}
+                                placeholder="Đỏ, Xanh..."
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* Material */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Chất liệu *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.material}
+                                onChange={(e) => updateVariant(index, 'material', e.target.value)}
+                                placeholder="Cotton, Polyester..."
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* Price */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Giá bán (VND) *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.price.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/\./g, '');
+                                  updateVariant(index, 'price', value ? Number(value) : 0);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* Cost Price */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Giá vốn (VND) *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.cost_price.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/\./g, '');
+                                  updateVariant(index, 'cost_price', value ? Number(value) : 0);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* Quantity */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Số lượng *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 0 }).replace(/,/g, '.')}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/\./g, '');
+                                  updateVariant(index, 'quantity', value ? Number(value) : 0);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Category and SKU */}

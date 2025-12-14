@@ -1,16 +1,27 @@
 // Types cho E-commerce App
 
+export interface Variant {
+  id: string;
+  size: string;
+  color: string;
+  material: string;
+  price: number;
+  cost_price: number;
+  quantity: number;
+  created_at?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: number; // Computed from variants (min price)
   originalPrice?: number;
   category: string;
   brand?: string;
   image: string;
   images?: string[];
-  stock: number;
+  stock: number; // Computed from variants (total quantity)
   rating: number;
   reviews: number;
   sold_count?: number;
@@ -21,6 +32,9 @@ export interface Product {
   specifications?: Record<string, string>;
   createdAt?: string;
   updatedAt?: string;
+  // Variants support
+  variants?: Variant[];
+  image_path?: string[]; // Alternative image field name
 }
 
 export interface CartItem {
@@ -29,6 +43,8 @@ export interface CartItem {
   quantity: number;
   size?: string;
   color?: string;
+  variant_id?: string;
+  cart_item_id?: string;
 }
 
 export interface User {
@@ -124,6 +140,8 @@ export interface RegisterResponse {
   message: string;
   user: User;
   token?: string;
+  refresh_token?: string;
+  access_token?: string;
 }
 
 export interface ApiResponse<T = any> {

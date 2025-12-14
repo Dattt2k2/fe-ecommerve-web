@@ -117,6 +117,12 @@ interface AdminOrder {
     Price?: number;
     name?: string;
     Name?: string;
+    variant_id?: string;
+    variantId?: string;
+    size?: string;
+    Size?: string;
+    color?: string;
+    Color?: string;
   }>;
   total: number;
   TotalPrice?: number;
@@ -227,6 +233,9 @@ export default function OrderManagement() {
             quantity: item.Quantity || item.quantity || 0,
             price: item.Price || item.price || 0,
             name: item.Name || item.name,
+            variant_id: item.variant_id || item.variantId || item.VariantID,
+            size: item.size || item.Size,
+            color: item.color || item.Color,
           })),
           total: order.TotalPrice || order.total_price || order.totalPrice || 0,
           status: finalStatus,
@@ -615,6 +624,20 @@ export default function OrderManagement() {
                           {order.items[0]?.name || 'N/A'}
                           {order.items.length > 1 && ` +${order.items.length - 1} khác`}
                         </div>
+                        {order.items[0] && (order.items[0].size || order.items[0].color) && (
+                          <div className="flex items-center gap-2 mt-1">
+                            {order.items[0].size && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                                Size: {order.items[0].size}
+                              </span>
+                            )}
+                            {order.items[0].color && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                Màu: {order.items[0].color}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-6 text-sm font-medium text-gray-900 dark:text-white">
                         {formatPrice(order.total)}

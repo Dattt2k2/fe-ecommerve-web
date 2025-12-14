@@ -15,10 +15,23 @@ interface ProductCardProps {
 export default function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
   const { addToCart } = useCart();
 
+  // Compute price and stock from variants if available
+  const displayPrice = product.variants && product.variants.length > 0
+    ? Math.min(...product.variants.map(v => v.price))
+    : product.price;
+  
+  const displayStock = product.variants && product.variants.length > 0
+    ? product.variants.reduce((sum, v) => sum + v.quantity, 0)
+    : product.stock;
+
+  const hasMultiplePrices = product.variants && product.variants.length > 0
+    ? Math.min(...product.variants.map(v => v.price)) !== Math.max(...product.variants.map(v => v.price))
+    : false;
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (product.stock > 0) {
+    if (displayStock > 0) {
       await addToCart(product);
     }
   };
@@ -88,10 +101,18 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
               <div className="flex items-center justify-between mt-auto">
                 <div className="flex flex-col">
                   <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatPrice(product.price)}
+                    {formatPrice(displayPrice)}
+                    {hasMultiplePrices && (
+                      <span className="text-sm text-gray-500 ml-1">
+                        ~ {formatPrice(Math.max(...(product.variants?.map(v => v.price) || [0])))}
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-500">
-                    Còn {product.stock} sản phẩm
+                    Còn {displayStock} sản phẩm
+                    {product.variants && product.variants.length > 0 && (
+                      <span className="ml-1">({product.variants.length} loại)</span>
+                    )}
                   </span>
                 </div>
                 
@@ -133,12 +154,17 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
             </div>
           )}
           
-          {/* Stock indicator
-          {product.stock < 10 && (
+          {/* Stock indicator */}
+          {displayStock < 10 && displayStock > 0 && (
             <div className="absolute bottom-2 left-2 bg-orange-500 text-white px-2 py-1 text-xs rounded">
-              Chỉ còn {product.stock}
+              Chỉ còn {displayStock}
             </div>
-          )} */}
+          )}
+          {displayStock === 0 && (
+            <div className="absolute bottom-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
+              Hết hàng
+            </div>
+          )}
         </div>
       </SmoothLink>
       
@@ -180,12 +206,24 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
           </div>
         )}
           <div className="flex items-center justify-between gap-3">
-          <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatPrice(product.price)}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatPrice(displayPrice)}
+              {hasMultiplePrices && (
+                <span className="text-sm text-gray-500 ml-1">
+                  ~ {formatPrice(Math.max(...(product.variants?.map(v => v.price) || [0])))}
+                </span>
+              )}
+            </span>
+            {product.variants && product.variants.length > 0 && (
+              <span className="text-xs text-gray-500 mt-0.5">
+                {product.variants.length} loại sản phẩm
+              </span>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">(Đã bán {product.sold_count})</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">(Đã bán {product.sold_count || 0})</span>
           </div>
           
         </div>

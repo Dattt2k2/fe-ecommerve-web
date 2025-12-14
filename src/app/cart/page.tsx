@@ -17,7 +17,7 @@ export default function CartPage() {
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   
-  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
+  const handleUpdateQuantity = async (itemId: string, newQuantity: number, variantId?: string) => {
     // Nếu số lượng về 0, hiển thị modal xác nhận
     if (newQuantity === 0) {
       setDeleteAction('quantity');
@@ -26,7 +26,7 @@ export default function CartPage() {
       return;
     }
     
-    const result = await updateQuantity(itemId, newQuantity);
+    const result = await updateQuantity(itemId, newQuantity, variantId);
     if (!result.success) {
       setError(result.message || 'Có lỗi xảy ra');
       setTimeout(() => setError(''), 5000);
@@ -208,12 +208,17 @@ export default function CartPage() {
                   <div className="mt-1 space-y-1">
                     {item.size && (
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Kích thước: {item.size}
+                        Size: {item.size}
                       </p>
                     )}
                     {item.color && (
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Màu sắc: {item.color}
+                      </p>
+                    )}
+                    {item.variant_id && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        ID: {item.variant_id}
                       </p>
                     )}
                   </div>
@@ -222,7 +227,7 @@ export default function CartPage() {
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1, item.variant_id)}
                         className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
                         <Minus className="w-4 h-4" />
@@ -231,8 +236,8 @@ export default function CartPage() {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                        disabled={item.quantity >= item.product.stock}
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1, item.variant_id)}
+                        disabled={item.quantity >= (item.product.stock || 0)}
                         className="p-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-4 h-4" />

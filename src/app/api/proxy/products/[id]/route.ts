@@ -29,23 +29,33 @@ export async function GET(
     const data = await response.json();
     console.log(`[Proxy] Product fetched successfully:`, data.name);
     
+    // Compute price and stock from variants if available
+    let price = data.price || 0;
+    let stock = data.quantity || 0;
+    
+    if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+      price = Math.min(...data.variants.map((v: any) => v.price || 0));
+      stock = data.variants.reduce((sum: number, v: any) => sum + (v.quantity || 0), 0);
+    }
+    
     // Map dữ liệu từ backend về format chuẩn
     const mappedData = {
       id: data.id,
       name: data.name,
       description: data.description,
-      price: data.price,
+      price: price,
       category: data.category,
       images: data.image_path || [],
       image: Array.isArray(data.image_path) && data.image_path.length > 0 
         ? data.image_path[0] 
         : '/images/placeholder.jpg',
-      stock: data.quantity || 0,
+      stock: stock,
       rating: data.rating || 0,
       reviews: data.rating_count || 0,
       sold: data.sold_count || 0,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      variants: data.variants || [], // Include variants
     };
     
     return NextResponse.json(mappedData);

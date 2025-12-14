@@ -1007,18 +1007,18 @@ export const cartAPI = {
   addToCart: (data: {
     product_id: string;
     quantity: number;
-    size?: string;
-    color?: string;
+    variant_id?: string;
   }): Promise<{
     message?: string;
     cart_item?: any;
     success?: boolean;
-  }> => 
-    apiClient.post(`/cart/add/${data.product_id}`, {
+  }> => {
+    // Use variant_id in URL path if provided, otherwise use product_id
+    const id = data.variant_id || data.product_id;
+    return apiClient.post(`/cart/add/${id}`, {
       quantity: data.quantity,
-      size: data.size,
-      color: data.color,
-    }),
+    });
+  },
   
   // Get cart items
   getCart: (): Promise<{

@@ -12,7 +12,7 @@ interface CartState {
 }
 
 interface CartContextType extends CartState {
-  addToCart: (product: Product, quantity?: number, options?: { size?: string; color?: string }) => Promise<{ success: boolean; message?: string }>;
+  addToCart: (product: Product, quantity?: number, options?: { size?: string; color?: string; variant_id?: string }) => Promise<{ success: boolean; message?: string }>;
   removeFromCart: (itemId: string) => Promise<{ success: boolean; message?: string }>;
   updateQuantity: (itemId: string, quantity: number) => Promise<{ success: boolean; message?: string }>;
   clearCart: () => Promise<{ success: boolean; message?: string }>;
@@ -20,7 +20,7 @@ interface CartContextType extends CartState {
 }
 
 type CartAction =
-  | { type: 'ADD_TO_CART'; payload: { product: Product; quantity: number; options?: { size?: string; color?: string } } }
+  | { type: 'ADD_TO_CART'; payload: { product: Product; quantity: number; options?: { size?: string; color?: string; variant_id?: string } } }
   | { type: 'REMOVE_FROM_CART'; payload: { itemId: string } }
   | { type: 'UPDATE_QUANTITY'; payload: { itemId: string; quantity: number } }
   | { type: 'CLEAR_CART' }
@@ -130,9 +130,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (cartItems.length > 0) {
           // Calculate total from cart items
-          const total = cartItems.reduce((sum: number, item: any) => 
-            sum + (item.price || 0) * (item.quantity || 0), 0
-          );
+          const total = cartItems.reduce((sum: number, item: any) => {
+            // Use variant price if available, otherwise use product price
+            const price = item.variant?.price || item.variant_price || item.price || 0;
+            return sum + price * (item.quantity || 0);
+          }, 0);
           const itemCount = cartItems.reduce((sum: number, item: any) => 
             sum + (item.quantity || 0), 0
           );
@@ -140,23 +142,41 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           dispatch({ 
             type: 'SET_CART', 
             payload: { 
-              items: cartItems.map((item: any) => ({
-                id: item.product_id,
-                product: {
-                  id: item.product_id,
-                  name: item.name,
-                  price: item.price,
-                  image: item.image_url || '/placeholder-product.jpg',
-                  description: item.description || '',
-                  stock: 100, // Default value
-                  category: '',
-                  rating: 0,
-                  reviews: 0,
-                },
-                quantity: item.quantity || 1,
-                size: item.size,
-                color: item.color,
-              })),
+              items: cartItems.map((item: any) => {
+                // Get variant info if available
+                const variant = item.variant || {};
+                const variantPrice = variant.price || item.variant_price || item.price || 0;
+                const variantStock = variant.quantity || item.variant_quantity || item.stock || 100;
+                
+                // Get product info
+                const product = item.product || {};
+                const productImage = product.image_path?.[0] || product.image || item.image_url || '/placeholder-product.jpg';
+                
+                const variantId = variant.id || item.variant_id;
+                
+                return {
+                  id: item.id || item.cart_item_id || item.product_id,
+                  product: {
+                    id: product.id || item.product_id,
+                    name: product.name || item.name || item.product_name,
+                    price: variantPrice,
+                    image: productImage,
+                    images: product.image_path || [productImage],
+                    description: product.description || item.description || '',
+                    stock: variantStock,
+                    category: product.category || item.category || '',
+                    rating: product.rating || 0,
+                    reviews: product.reviews || 0,
+                    variants: product.variants || [],
+                  },
+                  quantity: item.quantity || 1,
+                  size: variant.size || item.size,
+                  color: variant.color || item.color,
+                  variant_id: variantId,
+                  // Store cart_item_id separately for reference
+                  cart_item_id: item.id || item.cart_item_id,
+                };
+              }),
               total,
               itemCount
             }
@@ -174,14 +194,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fetchCart();
   }, [user]); // Re-run when user changes (login/logout)
 
-  const addToCart = async (product: Product, quantity = 1, options?: { size?: string; color?: string }): Promise<{ success: boolean; message?: string }> => {
+  const addToCart = async (product: Product, quantity = 1, options?: { size?: string; color?: string; variant_id?: string }): Promise<{ success: boolean; message?: string }> => {
     try {
       // Call API to add to cart
       const response = await cartAPI.addToCart({
         product_id: product.id,
         quantity,
-        size: options?.size,
-        color: options?.color,
+        variant_id: options?.variant_id,
       });
 
       // If API call succeeds, update local state
@@ -261,10 +280,14 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateQuantity = async (itemId: string, quantity: number): Promise<{ success: boolean; message?: string }> => {
+  const updateQuantity = async (itemId: string, quantity: number, variantId?: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      // Call API to update quantity
-      await cartAPI.updateCartItem(itemId, quantity);
+      // Find the cart item to get variant_id
+      const cartItem = state.items.find(item => item.id === itemId);
+      const idToUse = variantId || cartItem?.variant_id || itemId;
+      
+      // Call API to update quantity using variant_id
+      await cartAPI.updateCartItem(idToUse, quantity);
       
       // If API call succeeds, update local state
       dispatch({ type: 'UPDATE_QUANTITY', payload: { itemId, quantity } });
