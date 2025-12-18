@@ -876,6 +876,22 @@ export const ordersAPI = {
     const queryString = params.toString();
     return apiClient.get(`${API_ENDPOINTS.ORDERS.REVENUE}${queryString ? `?${queryString}` : ''}`);
   },
+
+  // Get top customers
+  getTopCustomers: (limit?: number, month?: number, year?: number): Promise<Array<{
+    user_id: string;
+    total_orders: number;
+    total_spent: number;
+    total_revenue: number;
+    last_order_date: string;
+  }>> => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const queryString = params.toString();
+    return apiClient.get(`/api/orders/top-customers${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 export const usersAPI = {
@@ -945,6 +961,9 @@ export const adminAPI = {
   
   deleteCustomer: (id: string): Promise<{ message: string }> => 
     apiClient.delete(`/api/admin/customers/${id}`),
+  
+  getUserById: (userId: string): Promise<{ user: User } | any> => 
+    apiClient.get(`/api/admin/users/${userId}`),
 };
 
 export const uploadAPI = {
