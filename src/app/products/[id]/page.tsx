@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowLeft, ShoppingCart, Heart, Share2, Star, Truck, Shield, RotateCcw } from 'lucide-react';
@@ -26,6 +26,23 @@ export default function ProductDetailPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 3;
   const { user, loading: authLoading, isAuthenticated } = useAuth();
+  const reviewsFetchedRef = useRef<string | null>(null);
+  // Scroll to reviews section when hash is present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash === '#reviews') {
+        // Small delay to ensure page is rendered
+        setTimeout(() => {
+          const reviewsElement = document.getElementById('reviews');
+          if (reviewsElement) {
+            reviewsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      }
+    }
+  }, [product]);
+
   useEffect(() => {
     const fetchProduct = async () => {
       if (!params.id) return;
@@ -66,7 +83,7 @@ export default function ProductDetailPage() {
           images: Array.isArray(data.images) ? data.images : (data.image ? [data.image] : []),
           stock: stock,
           rating: data.rating || 0,
-          reviews: data.reviews || 0,
+          reviews: data.count || 0,
           sold_count: data.sold || 0,
           tags: data.tags || [],
           featured: data.featured || false,
@@ -99,6 +116,24 @@ export default function ProductDetailPage() {
   }, [params.id, showError]);
 
   useEffect(() => {
+    // Reset ref when product ID changes
+    if (product?.id && reviewsFetchedRef.current !== product.id) {
+      // If product ID changed, reset the ref
+      if (reviewsFetchedRef.current && reviewsFetchedRef.current !== product.id) {
+        reviewsFetchedRef.current = null;
+      }
+    }
+
+    // Only fetch reviews if product is loaded and we haven't fetched for this product ID yet
+    if (!product || !product.id) {
+      return;
+    }
+
+    // Check if we've already fetched reviews for this product ID
+    if (reviewsFetchedRef.current === product.id) {
+      return;
+    }
+
     const fetchReviews = async () => {
       try {
         const response = await fetch(`/api/proxy/products/${params.id}/reviews`);
@@ -107,15 +142,41 @@ export default function ProductDetailPage() {
         }
         const data = await response.json();
         console.log('Fetched reviews:', data);
+        console.log('Review count from API:', data.count);
+
+        // Mark as fetched for this product ID
+        reviewsFetchedRef.current = product.id;
 
         // Ensure the reviews are properly set
         setReviews(data.reviews || []);
 
-        // Update the product rating dynamically based on reviews
+        // Update the product rating and review count dynamically based on reviews
+        if (data.count !== undefined) {
+          // Always update review count from API response
+          setProduct((prev) => {
+            if (!prev) {
+              console.warn('Cannot update reviews: product not yet loaded');
+              return prev;
+            }
+            const updated = { 
+              ...prev, 
+              reviews: data.count || 0 
+            };
+            console.log('Updating product reviews count to:', updated.reviews, 'from count:', data.count);
+            return updated;
+          });
+        } else {
+          console.warn('Review count not found in API response');
+        }
+
+        // Update rating if there are reviews
         if (data.reviews && data.reviews.length > 0) {
           const totalRating = data.reviews.reduce((sum: number, review: { rating: number }) => sum + review.rating, 0);
           const averageRating = totalRating / data.reviews.length;
-          setProduct((prev) => prev ? { ...prev, rating: averageRating } : prev);
+          setProduct((prev) => prev ? { 
+            ...prev, 
+            rating: averageRating
+          } : prev);
         }
       } catch (error) {
         console.error('Error fetching reviews:', error);
@@ -123,7 +184,8 @@ export default function ProductDetailPage() {
     };
 
     fetchReviews();
-  }, [params.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, product?.id]); // Only depend on params.id and product.id, not entire product object
 
   // Helper function to validate image URLs
   const getValidImageUrl = (imagePath: any): string => {
@@ -885,7 +947,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Reviews */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-8">
+          <div id="reviews" className="border-t border-gray-200 dark:border-gray-700 p-8 scroll-mt-20">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Đánh giá sản phẩm</h2>
             <div className="space-y-4">
               {reviews.slice(0, currentPage * reviewsPerPage).map((review, index) => (

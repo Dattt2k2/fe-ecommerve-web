@@ -6,7 +6,7 @@ import ProductCard from '@/components/product/ProductCard';
 import { Product } from '@/types';
 import { Filter, Grid, List, Search } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
-import { useProducts, useCategoryList, useAdvancedSearch } from '@/hooks/useApi';
+import { useProducts, useCategoryList, useAdvancedSearch, useProductsByCategory } from '@/hooks/useApi';
 
 export default function ProductsPage() {
   const { showError } = useToast();
@@ -146,32 +146,112 @@ export default function ProductsPage() {
     return params;
   }, [currentPage, productsPerPage, searchQuery, filterBy, priceRange, sortBy, categories]);
 
-  const shouldUseSearchAdvanced = useMemo(() => {
-    // Use search advanced when there's any filter applied
-    const hasSearch = searchQuery.trim().length > 0;
-    const hasCategoryFilter = filterBy !== 'all';
-    const hasSort = sortBy !== 'name';
-    const hasPriceFilter = priceRange[0] > 0 || priceRange[1] < 60000000;
+  const hasSearch = searchQuery.trim().length > 0;
+  const hasCategoryFilter = filterBy !== 'all' || !!categoryNameFromUrl;
+  const hasSort = sortBy !== 'name';
+  const hasPriceFilter = priceRange[0] > 0 || priceRange[1] < 60000000;
+  
+  const selectedCategory = useMemo(() => {
+    if (filterBy !== 'all') {
+      return categories.find((cat) => String(cat.id) === String(filterBy));
+    }
+    if (categoryNameFromUrl && categories.length > 0) {
+      return categories.find((cat) => cat.name.toLowerCase() === categoryNameFromUrl.toLowerCase());
+    }
+    return null;
+  }, [filterBy, categories, categoryNameFromUrl]);
+
+  // Use products by category when ONLY category filter is applied (no search, sort, price)
+  // Only use category API if we have a valid category name
+  const shouldUseCategoryAPI = hasCategoryFilter && !hasSearch && !hasSort && !hasPriceFilter && !!selectedCategory?.name;
+  
+  // Use advanced search when there's search, sort, or price filter
+  const shouldUseSearchAdvanced = hasSearch || hasSort || hasPriceFilter;
+
+  // Debug log
+  useEffect(() => {
+    console.log('[ProductsPage] API selection:', {
+      hasCategoryFilter,
+      hasSearch,
+      hasSort,
+      hasPriceFilter,
+      shouldUseCategoryAPI,
+      shouldUseSearchAdvanced,
+      selectedCategory: selectedCategory?.name
+    });
+  }, [hasCategoryFilter, hasSearch, hasSort, hasPriceFilter, shouldUseCategoryAPI, shouldUseSearchAdvanced, selectedCategory]);
+
+  // Build params for category API (without category in params since it's in the endpoint)
+  const categoryParams = useMemo(() => {
+    if (!shouldUseCategoryAPI) return null;
+    const params: any = {
+      page: currentPage,
+      limit: productsPerPage,
+    };
     
-    const result = hasSearch || hasCategoryFilter || hasSort || hasPriceFilter;
-    return result;
-  }, [searchQuery, filterBy, sortBy, priceRange]);
+    // Add sorting
+    if (sortBy === 'price-low') {
+      params.sortBy = 'price';
+      params.sortOrder = 'asc';
+    } else if (sortBy === 'price-high') {
+      params.sortBy = 'price';
+      params.sortOrder = 'desc';
+    } else if (sortBy === 'rating') {
+      params.sortBy = 'rating';
+      params.sortOrder = 'desc';
+    } else if (sortBy === 'reviews') {
+      params.sortBy = 'reviews';
+      params.sortOrder = 'desc';
+    } else {
+      params.sortBy = 'name';
+      params.sortOrder = 'asc';
+    }
+    
+    return params;
+  }, [shouldUseCategoryAPI, currentPage, productsPerPage, sortBy]);
 
   const regularParams = useMemo(() => {
-    return !shouldUseSearchAdvanced ? { ...apiParams, _useSearch: false } : null;
-  }, [shouldUseSearchAdvanced, apiParams]);
+    // Don't use regular API if we have category filter (use category API instead)
+    if (hasCategoryFilter) {
+      return null;
+    }
+    // Don't use regular API if we should use advanced search
+    if (shouldUseSearchAdvanced) {
+      return null;
+    }
+    // Remove category from params if it exists (shouldn't happen, but just in case)
+    const { category, ...paramsWithoutCategory } = apiParams;
+    return { ...paramsWithoutCategory, _useSearch: false };
+  }, [hasCategoryFilter, shouldUseSearchAdvanced, apiParams]);
   
   const searchParams = useMemo(() => {
-    const result = shouldUseSearchAdvanced ? { ...apiParams, _useSearch: true } : null;
-    return result;
+    return shouldUseSearchAdvanced ? { ...apiParams, _useSearch: true } : null;
   }, [shouldUseSearchAdvanced, apiParams]);
 
-  // Always use regular/search APIs (advanced-search when filters are applied)
+  // Use appropriate API based on filters
   const { data: regularResponse, loading: regularLoading } = useProducts(regularParams);
   const { data: searchResponse, loading: searchLoading } = useAdvancedSearch(searchParams);
+  const { data: categoryResponse, loading: categoryLoading } = useProductsByCategory(
+    shouldUseCategoryAPI ? selectedCategory?.name || null : null,
+    categoryParams
+  );
 
-  const productsResponse = shouldUseSearchAdvanced ? searchResponse : regularResponse;
-  const productsLoading = shouldUseSearchAdvanced ? searchLoading : regularLoading;
+  // Determine which response to use
+  const productsResponse = shouldUseCategoryAPI 
+    ? categoryResponse 
+    : (shouldUseSearchAdvanced ? searchResponse : regularResponse);
+  
+  // Only show loading for the API that's actually being used
+  // Don't show loading if we're switching between APIs (to avoid flicker)
+  const productsLoading = useMemo(() => {
+    if (shouldUseCategoryAPI) {
+      return categoryLoading && !categoryResponse; // Only show loading if no data yet
+    }
+    if (shouldUseSearchAdvanced) {
+      return searchLoading && !searchResponse; // Only show loading if no data yet
+    }
+    return regularLoading && !regularResponse; // Only show loading if no data yet
+  }, [shouldUseCategoryAPI, shouldUseSearchAdvanced, categoryLoading, categoryResponse, searchLoading, searchResponse, regularLoading, regularResponse]);
 
   // Map products data
   const products = useMemo(() => {

@@ -10,10 +10,6 @@ interface ProfileDetailsProps {
 const ProfileDetails: React.FC<ProfileDetailsProps> = ({ user, setUser }) => {
   console.log("ProfileDetails user prop:", user);
 
-  if (!user) {
-    return <div className="text-white">Không tìm thấy thông tin người dùng. Vui lòng thử lại sau.</div>;
-  }
-
   const [form, setForm] = useState({
     firstName: user?.first_name || '',
     lastName: user?.last_name || '',
@@ -40,13 +36,19 @@ const ProfileDetails: React.FC<ProfileDetailsProps> = ({ user, setUser }) => {
 
   // Chỉ update form khi user prop thay đổi, không fetch lại
   useEffect(() => {
-    setForm({
-      firstName: user?.first_name || '',
-      lastName: user?.last_name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-    });
-  }, [user?.id]);
+    if (user) {
+      setForm({
+        firstName: user?.first_name || '',
+        lastName: user?.last_name || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+      });
+    }
+  }, [user?.id, user?.first_name, user?.last_name, user?.email, user?.phone]);
+
+  if (!user) {
+    return <div className="text-white">Không tìm thấy thông tin người dùng. Vui lòng thử lại sau.</div>;
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -121,26 +123,16 @@ const ProfileDetails: React.FC<ProfileDetailsProps> = ({ user, setUser }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 lg:p-8">
       <div className="max-w-3xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Hồ sơ cá nhân</h2>
-          <p className="text-gray-600 dark:text-gray-400">Quản lý thông tin cá nhân</p>
-        </div>
 
         {/* Profile Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+       
           {/* User Avatar Section */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-8">
+          <div className="bg-gradient-to-r p-8">
             <div className="flex items-center gap-6">
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-4 border-white/30 shadow-lg">
                   <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
               </div>
@@ -275,7 +267,6 @@ const ProfileDetails: React.FC<ProfileDetailsProps> = ({ user, setUser }) => {
               </button>
             </div>
           </form>
-        </div>
 
         {/* Modal thông báo */}
         <Modal

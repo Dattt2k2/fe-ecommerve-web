@@ -90,7 +90,13 @@ export const API_ENDPOINTS = {
  */
 export async function safeFetch(url: string, options: RequestInit = {}) {
   const isAbsoluteUrl = url.startsWith('http://') || url.startsWith('https://');
-  const absoluteUrl = isAbsoluteUrl ? url : new URL(url, API_BASE_URL).toString();
+  // Keep Next.js API routes as relative paths (they start with /api)
+  const isNextJsApiRoute = url.startsWith('/api/');
+  const absoluteUrl = isAbsoluteUrl 
+    ? url 
+    : isNextJsApiRoute 
+      ? url  // Keep relative for Next.js API routes
+      : new URL(url, API_BASE_URL).toString();
 
   const fetchOptions: RequestInit = {
     ...options,

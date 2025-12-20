@@ -102,7 +102,6 @@ const AddressManagementPage: React.FC = () => {
                 <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Quản lý địa chỉ</h1>
-                        <p className="text-gray-600 dark:text-gray-400">Quản lý thông tin cá nhân</p>
                     </div>
                     <button 
                         onClick={() => { setShowForm(!showForm); setEditingAddress(null); setForm({ street: '', city: '', is_default: false }); }} 

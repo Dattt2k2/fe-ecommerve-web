@@ -109,14 +109,8 @@ export default function ChangePasswordForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 lg:p-8">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Đổi mật khẩu</h2>
-          <p className="text-gray-600 dark:text-gray-400">Cập nhật mật khẩu của bạn để bảo mật tài khoản</p>
-        </div>
 
         {/* Form Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {/* Mật khẩu cũ */}
             <div className="space-y-2">
@@ -205,7 +199,6 @@ export default function ChangePasswordForm() {
               </button>
             </div>
           </form>
-        </div>
 
         {/* Modal thông báo */}
         <Modal

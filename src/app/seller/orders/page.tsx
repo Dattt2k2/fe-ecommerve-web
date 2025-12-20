@@ -596,7 +596,7 @@ export default function SellerOrdersPage() {
                             Đang giao
                           </button>
                         )}
-                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'SHIPPED' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
+                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'SHIPPED' && order.status !== 'DELIVERING' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (order.payment_status || order.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                           <button
                             onClick={() => handleCancelClick(order.id || '')}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
@@ -740,7 +740,7 @@ export default function SellerOrdersPage() {
                       ✓ Xác nhận đơn hàng
                     </button>
                   )}
-                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'SHIPPED' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
+                  {expandedOrder.status !== 'CANCELLED' && expandedOrder.status !== 'DELIVERED' && expandedOrder.status !== 'SHIPPED' && expandedOrder.status !== 'DELIVERING' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASE' && (expandedOrder.payment_status || expandedOrder.PaymentStatus || '').toUpperCase() !== 'PAYMENT_RELEASED' && (
                     <button
                       onClick={() => { handleCancelClick(expandedOrder.id || ''); setSelectedStatus(null); setExpandedOrderId(null); }}
                       className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"

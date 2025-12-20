@@ -3,8 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
-import { apiClient, API_ENDPOINTS } from '@/lib/api';
+import { apiClient, API_ENDPOINTS, productsAPI } from '@/lib/api';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 interface OrderItem {
   product_id: string;
@@ -14,6 +16,15 @@ interface OrderItem {
   variant_id?: string;
   size?: string;
   color?: string;
+  // Thông tin sản phẩm đã fetch
+  productInfo?: {
+    id: string;
+    name: string;
+    image: string;
+    images?: string[];
+    category?: string;
+    brand?: string;
+  };
 }
 
 interface Order {
@@ -33,6 +44,7 @@ interface Order {
 export default function MyOrdersPage() {
   const { showError, showSuccess } = useToast();
   const { loading: authLoading } = useAuth();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -47,6 +59,121 @@ export default function MyOrdersPage() {
     orderId: string;
     message: string;
   } | null>(null);
+  const [productInfoMap, setProductInfoMap] = useState<Record<string, {
+    id: string;
+    name: string;
+    image: string;
+    images?: string[];
+    category?: string;
+    brand?: string;
+  }>>({});
+  const [loadingProducts, setLoadingProducts] = useState<Set<string>>(new Set());
+  const fetchedProductsRef = useRef<Set<string>>(new Set());
+  const fetchingProductsRef = useRef<Set<string>>(new Set());
+
+  // Fetch product information based on product_id and variant_id
+  const fetchProductInfoForOrders = useCallback(async (ordersList: Order[]) => {
+    const productIds = new Set<string>();
+    const productIdToNameMap = new Map<string, string>();
+    
+    // Collect all unique product IDs and their names
+    ordersList.forEach(order => {
+      order.items.forEach(item => {
+        if (item.product_id && !fetchedProductsRef.current.has(item.product_id)) {
+          productIds.add(item.product_id);
+          if (item.name && !productIdToNameMap.has(item.product_id)) {
+            productIdToNameMap.set(item.product_id, item.name);
+          }
+        }
+      });
+    });
+
+    // Filter out products that are already being fetched
+    const productsToFetch = Array.from(productIds).filter(productId => 
+      !fetchingProductsRef.current.has(productId)
+    );
+
+    if (productsToFetch.length === 0) {
+      return;
+    }
+
+    // Mark as fetching
+    productsToFetch.forEach(productId => {
+      fetchingProductsRef.current.add(productId);
+      setLoadingProducts(prev => new Set(prev).add(productId));
+    });
+
+    // Fetch product info for each product ID
+    const fetchPromises = productsToFetch.map(async (productId) => {
+      try {
+        const response = await productsAPI.getProduct(productId);
+        const product = response.product || response;
+        
+        if (product) {
+          const imageUrl = product.image || 
+                          (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : '') ||
+                          (Array.isArray(product.image_path) && product.image_path.length > 0 ? product.image_path[0] : '') ||
+                          '/images/placeholder.jpg';
+          
+          setProductInfoMap(prev => {
+            // Double check to avoid overwriting
+            if (prev[productId]) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [productId]: {
+                id: product.id || productId,
+                name: product.name || '',
+                image: imageUrl,
+                images: product.images || product.image_path || [],
+                category: product.category || '',
+                brand: product.brand || '',
+              }
+            };
+          });
+          
+          fetchedProductsRef.current.add(productId);
+        }
+      } catch (error) {
+        // Log error but don't throw - we'll set placeholder instead
+        console.warn(`[MyOrders] Error fetching product ${productId}:`, error instanceof Error ? error.message : String(error));
+        
+        // Set placeholder info on error - use item name if available
+        setProductInfoMap(prev => {
+          if (prev[productId]) {
+            return prev;
+          }
+          
+          // Use item name from the map we created earlier
+          const itemName = productIdToNameMap.get(productId) || '';
+          
+          return {
+            ...prev,
+            [productId]: {
+              id: productId,
+              name: itemName,
+              image: '/images/placeholder.jpg',
+              images: [],
+              category: '',
+              brand: '',
+            }
+          };
+        });
+        fetchedProductsRef.current.add(productId);
+      } finally {
+        fetchingProductsRef.current.delete(productId);
+        setLoadingProducts(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      }
+    });
+
+    // Use allSettled instead of all to continue even if some requests fail
+    await Promise.allSettled(fetchPromises);
+  }, []);
 
   const fetchOrders = useCallback(async (page: number = 1) => {
     try {
@@ -102,13 +229,33 @@ export default function MyOrdersPage() {
 
       setOrders(normalizedOrders);
       console.log('[MyOrders] Normalized orders set:', normalizedOrders);
+      
+      // Fetch product information for all items (async, don't wait)
+      fetchProductInfoForOrders(normalizedOrders).catch(err => {
+        console.error('[MyOrders] Error fetching product info:', err);
+      });
     } catch (error) {
       console.log('[MyOrders] Error fetching orders:', error);
       showError('Không thể tải danh sách đơn hàng');
     } finally {
       setLoading(false);
     }
-  }, [authLoading, showError]);
+  }, [authLoading, showError, fetchProductInfoForOrders]);
+
+  // Update orders with product info when productInfoMap changes
+  useEffect(() => {
+    if (Object.keys(productInfoMap).length > 0) {
+      setOrders(prevOrders => 
+        prevOrders.map(order => ({
+          ...order,
+          items: order.items.map(item => ({
+            ...item,
+            productInfo: productInfoMap[item.product_id],
+          }))
+        }))
+      );
+    }
+  }, [productInfoMap]);
 
   // Initial fetch + refresh on page focus
   useEffect(() => {
@@ -118,8 +265,9 @@ export default function MyOrdersPage() {
   }, [authLoading, fetchOrders, currentPage]);
 
   const getStatusBadgeColor = (status?: string, paymentStatus?: string) => {
-    const normalizedStatus = status?.toLowerCase() || '';
-    const normalizedPaymentStatus = paymentStatus?.toLowerCase() || '';
+    // Normalize status - handle both uppercase and lowercase, and trim whitespace
+    const normalizedStatus = (status || '').toLowerCase().trim();
+    const normalizedPaymentStatus = (paymentStatus || '').toLowerCase().trim();
     
     // Ưu tiên Status chính của đơn hàng
     switch (normalizedStatus) {
@@ -128,11 +276,13 @@ export default function MyOrdersPage() {
         return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
       case 'delivering':
       case 'shipping':
+      case 'shipped':
         return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200';
       case 'delivered':
       case 'completed':
         return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
       case 'processing':
+        // Đảm bảo processing luôn có màu xanh dương, không phụ thuộc vào payment_status
         return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
       case 'payment_held':
         return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200';
@@ -143,13 +293,15 @@ export default function MyOrdersPage() {
         if (normalizedPaymentStatus === 'pending' || normalizedPaymentStatus === 'pending_verification') {
           return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
         }
-        return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200';
+        // Pending nhưng đã thanh toán hoặc đang xử lý -> màu xanh dương (Đang xử lý)
+        return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
       default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+        // Default case: nếu không match với bất kỳ status nào, coi như "Đang xử lý" -> màu xanh dương
+        return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200';
     }
   };
 
-  const getStatusLabel = (status?: string, paymentStatus?: string, shippingStatus?: string) => {
+  const getStatusLabel = (status?: string, paymentStatus?: string, _shippingStatus?: string) => {
     const normalizedStatus = status?.toLowerCase() || '';
     const normalizedPaymentStatus = paymentStatus?.toLowerCase() || '';
 
@@ -256,20 +408,13 @@ export default function MyOrdersPage() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-              <svg className="w-10 h-10 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
               Đơn Hàng Của Tôi
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">Theo dõi và quản lý đơn hàng của bạn</p>
           </div>
           <Link 
-            href="/products"
+            href="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
             Tiếp tục mua sắm
           </Link>
         </div>
@@ -340,10 +485,26 @@ export default function MyOrdersPage() {
                       {/* Trạng thái đơn hàng */}
                       <div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Trạng thái đơn hàng</p>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${getStatusBadgeColor(order.status, order.payment_status)}`}>
-                          <span className="w-2 h-2 rounded-full bg-current"></span>
-                          {getStatusLabel(order.status, order.payment_status, order.shipping_status)}
-                        </span>
+                        {(() => {
+                          const statusLabel = getStatusLabel(order.status, order.payment_status, order.shipping_status);
+                          const statusColor = getStatusBadgeColor(order.status, order.payment_status);
+                          // Debug log for status inconsistency
+                          if (statusLabel === 'Đang xử lý') {
+                            console.log('[Order Status]', {
+                              orderId: order.id,
+                              status: order.status,
+                              payment_status: order.payment_status,
+                              statusLabel,
+                              statusColor
+                            });
+                          }
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${statusColor}`}>
+                              <span className="w-2 h-2 rounded-full bg-current"></span>
+                              {statusLabel}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Thanh toán */}
@@ -405,31 +566,98 @@ export default function MyOrdersPage() {
                   <>
                     {/* Order Items */}
                     <div className="px-6 py-4">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2">Mã đơn hàng: {order.id}</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Sản phẩm:</p>
-                      <div className="space-y-3">
-                        {order.items && order.items.map((item) => (
-                          <div key={item.product_id} className="flex items-center justify-between text-sm">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <p className="text-gray-600 dark:text-gray-400">Số lượng: {item.quantity}</p>
-                                {item.size && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                                    Size: {item.size}
-                                  </span>
+                      <div className="space-y-4">
+                        {order.items && order.items.map((item, index) => {
+                          const productInfo = item.productInfo || productInfoMap[item.product_id];
+                          const productImage = productInfo?.image || '/images/placeholder.jpg';
+                          const isLoading = loadingProducts.has(item.product_id) && !productInfo;
+                          
+                          return (
+                            <div 
+                              key={`${item.product_id}-${item.variant_id || index}`} 
+                              className="flex items-start gap-4 p-4  dark:hover:bg-gray-700 transition-colors"
+                            >
+                              {/* Product Image */}
+                              <Link 
+                                href={`/products/${item.product_id}`}
+                                className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 relative rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 group"
+                              >
+                                {isLoading ? (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Image
+                                      src={productImage}
+                                      alt={item.name || 'Sản phẩm'}
+                                      fill
+                                      className="object-cover group-hover:scale-105 transition-transform duration-200"
+                                      sizes="(max-width: 768px) 80px, 96px"
+                                    />
+                                  </>
                                 )}
-                                {item.color && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
-                                    Màu: {item.color}
+                              </Link>
+
+                              {/* Product Info */}
+                              <div className="flex-1 min-w-0">
+                                <Link 
+                                  href={`/products/${item.product_id}`}
+                                  className="block group"
+                                >
+                                  <p className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                                    {item.name || productInfo?.name || 'Sản phẩm'}
+                                  </p>
+                                </Link>
+                                
+                                {/* Product Details */}
+                                <div className="mt-2 space-y-1">
+                                  {productInfo?.category && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Danh mục: {productInfo.category}
+                                    </p>
+                                  )}
+                                  {productInfo?.brand && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Thương hiệu: {productInfo.brand}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Variant Info */}
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                                    Số lượng: <span className="font-semibold text-gray-900 dark:text-white">{item.quantity}</span>
                                   </span>
-                                )}
+                                  {item.size && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                                      Size: {item.size}
+                                    </span>
+                                  )}
+                                  {item.color && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                      Màu: {item.color}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Price */}
+                              <div className="flex-shrink-0 text-right">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Đơn giá</p>
+                                <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                                  {item.price.toLocaleString('vi-VN')} VND
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">x {item.quantity}</p>
+                                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                                  {(item.price * item.quantity).toLocaleString('vi-VN')} VND
+                                </p>
                               </div>
                             </div>
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                              {(item.price * item.quantity).toLocaleString()} VND
-                            </p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -464,14 +692,29 @@ export default function MyOrdersPage() {
 
                     {/* Order Footer - Action Buttons */}
                     <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex flex-wrap gap-2">
-                      {/* Hủy đơn hàng - nếu chưa được giao */}
-                      {(
-                        (order.status?.toUpperCase() === 'PENDING' || 
-                        order.status?.toUpperCase() === 'PAYMENT_HELD' || 
-                        order.status?.toUpperCase() === 'PROCESSING') &&
-                        order.payment_status?.toUpperCase() !== 'PAYMENT_RELEASE' &&
-                        order.payment_status?.toUpperCase() !== 'PAYMENT_RELEASED'
-                      ) && (
+                      {/* Hủy đơn hàng - chỉ khi chưa được giao (không phải shipping/delivering/shipped) */}
+                      {(() => {
+                        const statusUpper = order.status?.toUpperCase() || '';
+                        const paymentStatusUpper = order.payment_status?.toUpperCase() || '';
+                        const shippingStatusUpper = order.shipping_status?.toUpperCase() || '';
+                        
+                        // Không cho hủy nếu đang giao hoặc đã giao
+                        const isShipping = ['SHIPPING', 'DELIVERING', 'SHIPPED', 'DELIVERED'].includes(statusUpper);
+                        const isShippingByStatus = ['SHIPPING', 'DELIVERING', 'SHIPPED', 'DELIVERED'].includes(shippingStatusUpper);
+                        
+                        // Chỉ cho hủy khi: pending/processing/payment_held VÀ không đang giao VÀ chưa release payment
+                        const canCancel = (
+                          (statusUpper === 'PENDING' || 
+                           statusUpper === 'PAYMENT_HELD' || 
+                           statusUpper === 'PROCESSING') &&
+                          !isShipping &&
+                          !isShippingByStatus &&
+                          paymentStatusUpper !== 'PAYMENT_RELEASE' &&
+                          paymentStatusUpper !== 'PAYMENT_RELEASED'
+                        );
+                        
+                        return canCancel;
+                      })() && (
                         <button
                           onClick={() => {
                             setConfirmAction({
@@ -502,6 +745,53 @@ export default function MyOrdersPage() {
                         >
                           Đã nhận hàng
                         </button>
+                      )}
+
+                      {/* Mua lại và Đánh giá - chỉ khi đơn hàng đã SHIPPED */}
+                      {order.status?.toUpperCase() === 'SHIPPED' && order.items && order.items.length > 0 && (
+                        <div className="w-full flex flex-col gap-2 mt-2">
+                          <div className="flex flex-wrap gap-2">
+                            {order.items.map((item, index) => {
+                              const handleBuyAgain = () => {
+                                // Tạo URL params để chuyển đến trang order
+                                const params = new URLSearchParams({
+                                  productId: item.product_id,
+                                  quantity: item.quantity.toString(),
+                                });
+                                
+                                if (item.variant_id) {
+                                  params.append('variant_id', item.variant_id);
+                                }
+                                if (item.size) {
+                                  params.append('size', item.size);
+                                }
+                                if (item.color) {
+                                  params.append('color', item.color);
+                                }
+                                
+                                // Chuyển đến trang order
+                                router.push(`/order?${params.toString()}`);
+                              };
+
+                              return (
+                                <div key={`actions-${item.product_id}-${index}`} className="flex items-center gap-2">
+                                  <button
+                                    onClick={handleBuyAgain}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-medium rounded-lg transition-colors text-sm"
+                                  >
+                                    Mua lại
+                                  </button>
+                                  <Link
+                                    href={`/products/${item.product_id}#reviews`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm"
+                                  >
+                                    Đánh giá
+                                  </Link>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </>

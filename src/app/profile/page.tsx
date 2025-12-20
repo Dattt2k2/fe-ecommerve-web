@@ -143,6 +143,8 @@ import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
 type UserProfile = {
   id: string;
   name?: string;
+  first_name?: string;
+  last_name?: string;
   email?: string;
   phone?: string;
 };
@@ -163,6 +165,8 @@ export default function ProfilePage() {
       const payload: UserProfile = {
         id: authUser.id,
         name: authUser.name || "",
+        first_name: (authUser as any).first_name || "",
+        last_name: (authUser as any).last_name || "",
         email: (authUser as any).email || "",
         phone: (authUser as any).phone || "",
       };
@@ -190,7 +194,9 @@ export default function ProfilePage() {
       if (profile && profile.id) {
         const payload: UserProfile = {
           id: profile.id || profile.uid || profile._id || profile.ID,
-          name: profile.name || profile.fullname || profile.email?.split?.("@")?.[0] || "",
+          name: profile.name || profile.fullname || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email?.split?.("@")?.[0] || "",
+          first_name: profile.first_name || "",
+          last_name: profile.last_name || "",
           email: profile.email || "",
           phone: profile.phone || profile.mobile || "",
         };

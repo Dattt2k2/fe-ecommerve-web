@@ -54,7 +54,20 @@ const SearchDropdown = () => {
     try {
       console.log(`Fetching results for query: ${searchQuery}`);
       const response = await apiClient.get<any>(`/search?query=${searchQuery}`);
-      setResults(response || []);
+      console.log('[SearchDropdown] API response:', response);
+      
+      // Handle different response formats
+      let products = [];
+      if (Array.isArray(response)) {
+        products = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        products = response.data;
+      } else if (response?.products && Array.isArray(response.products)) {
+        products = response.products;
+      }
+      
+      console.log('[SearchDropdown] Processed products:', products);
+      setResults(products);
       setShowDropdown(true);
     } catch (error) {
       console.error('Error fetching search results:', error);
@@ -210,9 +223,24 @@ const SearchDropdown = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{product.name || product.Name}</p>
-                        <p className="text-sm text-orange-600 font-semibold">
-                          {(product.price || product.Price)?.toLocaleString()} VND
-                        </p>
+                        {(() => {
+                          // Get price from variants if available, otherwise use product.price
+                          let displayPrice = product.price || product.Price;
+                          if (!displayPrice && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+                            // Get min price from variants
+                            const prices = product.variants
+                              .map((v: any) => v.price)
+                              .filter((p: any) => p !== undefined && p !== null);
+                            if (prices.length > 0) {
+                              displayPrice = Math.min(...prices);
+                            }
+                          }
+                          return displayPrice ? (
+                            <p className="text-sm text-orange-600 font-semibold">
+                              {displayPrice.toLocaleString('vi-VN')} VND
+                            </p>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   </Link>
