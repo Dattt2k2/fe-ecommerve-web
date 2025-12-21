@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
@@ -14,7 +14,9 @@ import {
   SortAsc,
   SortDesc,
   Download,
-  RefreshCw
+  RefreshCw,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -30,6 +32,7 @@ interface Variant {
   size: string;
   color: string;
   material: string;
+  attribute?: string; // Thuộc tính cho đồ điện tử (VD: 128GB, 256GB)
   price: number;
   cost_price: number;
   quantity: number;
@@ -81,11 +84,24 @@ export default function InventoryManagement() {
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'quantity' | 'createdAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
+  // States for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [paginationInfo, setPaginationInfo] = useState({
+    has_next: false,
+    has_prev: false,
+    page: 1,
+    pages: 1,
+    total: 0
+  });
+  
   // States for product form modal
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -115,6 +131,12 @@ export default function InventoryManagement() {
     return category?.code || '';
   };
 
+  // Helper function to get category id by name
+  const getCategoryId = (categoryName: string): string => {
+    const category = categories.find((cat: any) => cat.name === categoryName);
+    return category?.id || '';
+  };
+
   // Helper function to compute display fields from variants
   const computeProductDisplayFields = (product: Product): Product => {
     if (product.variants && product.variants.length > 0) {
@@ -124,11 +146,33 @@ export default function InventoryManagement() {
     return product;
   };
 
-  const fetchProducts = async () => { 
+  const fetchProducts = useCallback(async () => { 
     setLoading(true);
     setError(null);
     try {
-      const data = await apiClient.get<any>('/api/products?user=true');
+      // Build query params
+      const params = new URLSearchParams();
+      params.append('user', 'true');
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      if (selectedCategory !== 'all') {
+        const categoryCode = getCategoryCode(selectedCategory);
+        if (categoryCode) {
+          params.append('category', categoryCode);
+        }
+      }
+      if (sortBy) {
+        params.append('sortBy', sortBy === 'createdAt' ? 'created_at' : sortBy);
+      }
+      if (sortOrder) {
+        params.append('sortOrder', sortOrder);
+      }
+      
+      const data = await apiClient.get<any>(`/api/products?${params.toString()}`);
       
       const bodyErr = data && (data.error || data.message || data.msg);
       if (typeof bodyErr === 'string' && /token\s*(is\s*)?expired|expired\s*token/i.test(bodyErr)) {
@@ -146,6 +190,17 @@ export default function InventoryManagement() {
         return computeProductDisplayFields(product);
       });
       setProducts(transformedProducts);
+      
+      // Update pagination info from API response
+      if (data && !Array.isArray(data)) {
+        setPaginationInfo({
+          has_next: data.has_next || false,
+          has_prev: data.has_prev || false,
+          page: data.page || currentPage,
+          pages: data.pages || 1,
+          total: data.total || transformedProducts.length
+        });
+      }
     } catch (err: any) {
       const errorMsg = err?.message || 'Lỗi khi tải dữ liệu';
       setError(errorMsg);
@@ -153,45 +208,29 @@ export default function InventoryManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, selectedCategory, sortBy, sortOrder, itemsPerPage]);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
+  // Filter products by status only (search, category, sort are handled by API)
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.id.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-      const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
-      
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
+    if (selectedStatus === 'all') {
+      return products;
+    }
+    return products.filter(product => product.status === selectedStatus);
+  }, [products, selectedStatus]);
 
-    // Sort products
-    filtered.sort((a, b) => {
-      let aValue: any = a[sortBy === 'createdAt' ? 'created_at' : sortBy];
-      let bValue: any = b[sortBy === 'createdAt' ? 'created_at' : sortBy];
-      
-      // Handle undefined values
-      if (aValue === undefined) aValue = '';
-      if (bValue === undefined) bValue = '';
-      
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-      
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
-  }, [products, searchTerm, selectedCategory, selectedStatus, sortBy, sortOrder]);
+  // Reset to page 1 when filters change (except currentPage itself)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, sortBy, sortOrder]);
 
 
 
@@ -328,9 +367,10 @@ export default function InventoryManagement() {
         image_path: imageKeys,
         variants: formData.variants.map(variant => ({
           id: variant.id || `${editingProduct?.id || 'NEW'}-${variant.size}-${variant.color}`.toUpperCase().replace(/\s+/g, '-'),
-          size: variant.size,
-          color: variant.color,
-          material: variant.material,
+          size: variant.size || '',
+          color: variant.color || '',
+          material: variant.material || '',
+          attribute: variant.attribute || '',
           price: variant.price,
           cost_price: variant.cost_price,
           quantity: variant.quantity,
@@ -457,6 +497,7 @@ export default function InventoryManagement() {
         size: '',
         color: '',
         material: '',
+        attribute: '',
         price: 0,
         cost_price: 0,
         quantity: 0
@@ -656,10 +697,6 @@ export default function InventoryManagement() {
         </div>
       </div>
 
-      {/* Results Summary */}
-      <div className="text-gray-300">
-        Hiển thị {filteredProducts.length} trong tổng số {products.length} sản phẩm
-      </div>
 
       {/* Error Display */}
       {error && (
@@ -826,12 +863,67 @@ export default function InventoryManagement() {
         </div>
       )}
 
+      {/* Pagination */}
+      {!loading && paginationInfo.total > 0 && paginationInfo.pages > 1 && (
+        <div className="flex items-center justify-between px-4 py-4 bg-white/5 rounded-lg border border-white/10">
+          <div className="text-sm text-gray-300">
+            Trang {paginationInfo.page} / {paginationInfo.pages}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={!paginationInfo.has_prev || currentPage === 1}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Trước
+            </button>
+            
+            <div className="flex items-center gap-2">
+              {Array.from({ length: Math.min(5, paginationInfo.pages) }, (_, i) => {
+                let pageNum;
+                if (paginationInfo.pages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= paginationInfo.pages - 2) {
+                  pageNum = paginationInfo.pages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-700 text-white border border-gray-600 hover:bg-gray-600'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(paginationInfo.pages, prev + 1))}
+              disabled={!paginationInfo.has_next || currentPage === paginationInfo.pages}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* No Products */}
       {!loading && filteredProducts.length === 0 && (
         <div className="text-center py-12">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-medium text-white mb-2">
-            {products.length === 0 ? 'Chưa có sản phẩm nào' : 'Không tìm thấy sản phẩm'}
+            {paginationInfo.total === 0 ? 'Chưa có sản phẩm nào' : 'Không tìm thấy sản phẩm'}
           </h3>
           <p className="text-gray-400 mb-6">
             {products.length === 0 
@@ -925,18 +1017,10 @@ export default function InventoryManagement() {
 
                 {/* Variants Management */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-300">
                       Loại sản phẩm (Size, Màu sắc) *
                     </label>
-                    <button
-                      type="button"
-                      onClick={addVariant}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Thêm loại sản phẩm
-                    </button>
                   </div>
 
                   {formData.variants.length === 0 ? (
@@ -959,41 +1043,56 @@ export default function InventoryManagement() {
                           </div>
                           
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {/* Size */}
+                            {/* Size - Luôn hiển thị trong form */}
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Size *</label>
+                              <label className="block text-xs text-gray-400 mb-1">Size</label>
+                              <select
+                                value={variant.size || ''}
+                                onChange={(e) => updateVariant(index, 'size', e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              >
+                                <option value="">Không có size</option>
+                                <option value="S">S</option>
+                                <option value="M">M</option>
+                                <option value="L">L</option>
+                                <option value="XL">XL</option>
+                              </select>
+                            </div>
+
+                            {/* Thuộc tính - Luôn hiển thị trong form */}
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Loại</label>
                               <input
                                 type="text"
-                                required
-                                value={variant.size}
-                                onChange={(e) => updateVariant(index, 'size', e.target.value)}
-                                placeholder="M, L, XL..."
+                                value={variant.attribute || ''}
+                                onChange={(e) => updateVariant(index, 'attribute', e.target.value)}
+                                placeholder="VD: 128GB, 256GB..."
                                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               />
                             </div>
 
-                            {/* Color */}
-                            <div>
-                              <label className="block text-xs text-gray-400 mb-1">Màu sắc *</label>
-                              <input
-                                type="text"
-                                required
-                                value={variant.color}
-                                onChange={(e) => updateVariant(index, 'color', e.target.value)}
-                                placeholder="Đỏ, Xanh..."
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
+                            {/* Color - Chỉ hiển thị nếu có giá trị hoặc đang trong form */}
+                            {(variant.color || true) && (
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">Màu sắc</label>
+                                <input
+                                  type="text"
+                                  value={variant.color || ''}
+                                  onChange={(e) => updateVariant(index, 'color', e.target.value)}
+                                  placeholder="Đỏ, Xanh... (tùy chọn)"
+                                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                              </div>
+                            )}
 
                             {/* Material */}
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Chất liệu *</label>
+                              <label className="block text-xs text-gray-400 mb-1">Chất liệu</label>
                               <input
                                 type="text"
-                                required
                                 value={variant.material}
                                 onChange={(e) => updateVariant(index, 'material', e.target.value)}
-                                placeholder="Cotton, Polyester..."
+                                placeholder="Cotton, Polyester... (tùy chọn)"
                                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               />
                             </div>
@@ -1047,6 +1146,18 @@ export default function InventoryManagement() {
                       ))}
                     </div>
                   )}
+                  
+                  {/* Button thêm variant ở dưới danh sách */}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={addVariant}
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Thêm loại sản phẩm
+                    </button>
+                  </div>
                 </div>
 
                 {/* Category and SKU */}
@@ -1058,19 +1169,17 @@ export default function InventoryManagement() {
                         <span className="ml-2 text-xs text-gray-500">(Không thể chỉnh sửa)</span>
                       )}
                     </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    <button
+                      type="button"
+                      onClick={() => !editingProduct && setShowCategoryModal(true)}
                       disabled={categoriesLoading || editingProduct !== null}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between hover:bg-gray-700 transition-colors"
                     >
-                      <option value="">{categoriesLoading ? 'Đang tải danh mục...' : 'Chọn danh mục'}</option>
-                      {categories.map((category: any) => (
-                        <option key={category.name} value={category.name}>
-                          {category.name}{category.code ? ` (${category.code})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                      <span className={formData.category ? 'text-white' : 'text-gray-400'}>
+                        {formData.category || (categoriesLoading ? 'Đang tải danh mục...' : 'Chọn danh mục')}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
                   </div>
 
                   {/* <div>
@@ -1250,6 +1359,242 @@ export default function InventoryManagement() {
               >
                 Xóa
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Selection Modal */}
+      {showCategoryModal && (
+        <div className="modal-wrapper">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/75 z-[102]"
+            onClick={() => {
+              setShowCategoryModal(false);
+              setCategorySearchTerm('');
+            }}
+          />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-[103] flex items-center justify-center p-4">
+            <div 
+              className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-700">
+                <h3 className="text-xl font-semibold text-white">Chọn danh mục</h3>
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setCategorySearchTerm('');
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="p-4 border-b border-gray-700">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm danh mục..."
+                    value={categorySearchTerm}
+                    onChange={(e) => setCategorySearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* Category List */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {categoriesLoading ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+                    <p className="text-gray-400">Đang tải danh mục...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {categories
+                      .filter((category: any) => {
+                        if (!categorySearchTerm) return true;
+                        const searchLower = categorySearchTerm.toLowerCase();
+                        return (
+                          category.name?.toLowerCase().includes(searchLower) ||
+                          category.code?.toLowerCase().includes(searchLower)
+                        );
+                      })
+                      .map((category: any) => (
+                        <button
+                          key={category.name}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, category: category.name }));
+                            setShowCategoryModal(false);
+                            setCategorySearchTerm('');
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                            formData.category === category.name
+                              ? 'bg-orange-500/20 border-2 border-orange-500'
+                              : 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent'
+                          }`}
+                        >
+                          <div className="font-medium text-white">{category.name}</div>
+                          {category.code && (
+                            <div className="text-sm text-gray-400 mt-1">Mã: {category.code}</div>
+                          )}
+                        </button>
+                      ))}
+                    {categories.filter((category: any) => {
+                      if (!categorySearchTerm) return false;
+                      const searchLower = categorySearchTerm.toLowerCase();
+                      return (
+                        category.name?.toLowerCase().includes(searchLower) ||
+                        category.code?.toLowerCase().includes(searchLower)
+                      );
+                    }).length === 0 && categorySearchTerm && (
+                      <div className="text-center py-8 text-gray-400">
+                        Không tìm thấy danh mục nào
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-700 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setCategorySearchTerm('');
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Selection Modal */}
+      {showCategoryModal && (
+        <div className="modal-wrapper">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/75 z-[102]"
+            onClick={() => {
+              setShowCategoryModal(false);
+              setCategorySearchTerm('');
+            }}
+          />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-[103] flex items-center justify-center p-4">
+            <div 
+              className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-700">
+                <h3 className="text-xl font-semibold text-white">Chọn danh mục</h3>
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setCategorySearchTerm('');
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="p-4 border-b border-gray-700">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm danh mục..."
+                    value={categorySearchTerm}
+                    onChange={(e) => setCategorySearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* Category List */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {categoriesLoading ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+                    <p className="text-gray-400">Đang tải danh mục...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {categories
+                      .filter((category: any) => {
+                        if (!categorySearchTerm) return true;
+                        const searchLower = categorySearchTerm.toLowerCase();
+                        return (
+                          category.name?.toLowerCase().includes(searchLower) ||
+                          category.code?.toLowerCase().includes(searchLower)
+                        );
+                      })
+                      .map((category: any) => (
+                        <button
+                          key={category.name}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, category: category.name }));
+                            setShowCategoryModal(false);
+                            setCategorySearchTerm('');
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                            formData.category === category.name
+                              ? 'bg-orange-500/20 border-2 border-orange-500'
+                              : 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent'
+                          }`}
+                        >
+                          <div className="font-medium text-white">{category.name}</div>
+                          {category.code && (
+                            <div className="text-sm text-gray-400 mt-1">Mã: {category.code}</div>
+                          )}
+                        </button>
+                      ))}
+                    {categories.filter((category: any) => {
+                      if (!categorySearchTerm) return false;
+                      const searchLower = categorySearchTerm.toLowerCase();
+                      return (
+                        category.name?.toLowerCase().includes(searchLower) ||
+                        category.code?.toLowerCase().includes(searchLower)
+                      );
+                    }).length === 0 && categorySearchTerm && (
+                      <div className="text-center py-8 text-gray-400">
+                        Không tìm thấy danh mục nào
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-700 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setCategorySearchTerm('');
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

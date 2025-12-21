@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, ShoppingCart, Heart, Share2, Star, Truck, Shield, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Heart, Share2, Star, Truck, Shield, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -20,13 +20,46 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [quantityInput, setQuantityInput] = useState('1');
-  const [selectedVariant, setSelectedVariant] = useState<{ size: string; color: string; material: string } | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<{ size: string; color: string; material: string; attribute?: string } | null>(null);
+  const thumbnailScrollRef = useRef<HTMLDivElement>(null);
   const [reviews, setReviews] = useState<{ rating: number; title: string; body_review: string; created_at: string }[]>([]);
   const [newReview, setNewReview] = useState({ rating: 0, body_review: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 3;
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const reviewsFetchedRef = useRef<string | null>(null);
+  
+  // Helper function to find variant based on selectedVariant
+  const findVariant = (variants: any[], selected: typeof selectedVariant, category?: string) => {
+    if (!selected || !variants) return null;
+    
+    // Ưu tiên tìm theo attribute nếu có
+    if (selected.attribute) {
+      const variantByAttribute = variants.find(v => (v as any).attribute === selected.attribute);
+      if (variantByAttribute) return variantByAttribute;
+    }
+    
+    // Nếu không tìm thấy theo attribute, tìm theo size và color
+    if (selected.size && selected.color) {
+      return variants.find(v => 
+        v.size === selected.size && 
+        v.color === selected.color
+      );
+    }
+    
+    // Nếu chỉ có size
+    if (selected.size) {
+      return variants.find(v => v.size === selected.size);
+    }
+    
+    // Nếu chỉ có color
+    if (selected.color) {
+      return variants.find(v => v.color === selected.color);
+    }
+    
+    return null;
+  };
+  
   // Scroll to reviews section when hash is present
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -98,10 +131,12 @@ export default function ProductDetailPage() {
         
         // Auto-select first variant if available
         if (data.variants && data.variants.length > 0) {
+          const firstVariant = data.variants[0];
           setSelectedVariant({
-            size: data.variants[0].size,
-            color: data.variants[0].color,
-            material: data.variants[0].material
+            size: firstVariant.size || '',
+            color: firstVariant.color || '',
+            material: firstVariant.material || '',
+            ...(firstVariant.attribute && { attribute: firstVariant.attribute })
           });
         }
       } catch (error) {
@@ -249,10 +284,7 @@ export default function ProductDetailPage() {
     
     // Get variant_id if available
     const variantId = product.variants && selectedVariant
-      ? product.variants.find(v => 
-          v.size === selectedVariant.size && 
-          v.color === selectedVariant.color
-        )?.id
+      ? findVariant(product.variants, selectedVariant, product.category)?.id
       : undefined;
     
     const result = await addToCart(product, quantity, {
@@ -307,10 +339,7 @@ export default function ProductDetailPage() {
 
     // Get variant_id if available
     const variantId = product.variants && selectedVariant
-      ? product.variants.find(v => 
-          v.size === selectedVariant.size && 
-          v.color === selectedVariant.color
-        )?.id
+      ? findVariant(product.variants, selectedVariant, product.category)?.id
       : undefined;
 
     // Chuyển hướng đến trang order với thông tin sản phẩm
@@ -396,12 +425,18 @@ export default function ProductDetailPage() {
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-[1rem] sm:px-[1.5rem] lg:px-[2rem] py-[2rem]">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
-            {/* Image Gallery */}
-            <div className="space-y-4">
+    <>
+      <style>{`
+        .thumbnail-scroll::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-[1rem] sm:px-[1.5rem] lg:px-[2rem] py-[2rem]">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
+              {/* Image Gallery */}
+              <div className="space-y-4">
               {/* Main Image */}
               <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                 <Image
@@ -415,26 +450,67 @@ export default function ProductDetailPage() {
 
               {/* Thumbnail Images */}
               {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {images.map((image, index) => (
+                <div className="relative">
+                  {/* Scroll Left Button */}
+                  {images.length > 4 && (
                     <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border-2 transition-colors ${
-                        selectedImage === index
-                          ? 'border-blue-600'
-                          : 'border-transparent hover:border-gray-300'
-                      }`}
+                      onClick={() => {
+                        if (thumbnailScrollRef.current) {
+                          thumbnailScrollRef.current.scrollBy({ left: -120, behavior: 'smooth' });
+                        }
+                      }}
+                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      aria-label="Scroll left"
                     >
-                      <Image
-                        src={image}
-                        alt={`${product.name} - ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="10rem"
-                      />
+                      <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
-                  ))}
+                  )}
+                  
+                  {/* Thumbnail Container */}
+                  <div
+                    ref={thumbnailScrollRef}
+                    className="thumbnail-scroll flex gap-2 overflow-x-auto scroll-smooth"
+                    style={{ 
+                      scrollbarWidth: 'none', 
+                      msOverflowStyle: 'none'
+                    }}
+                  >
+                    {images.map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedImage(index)}
+                        className={`relative flex-shrink-0 aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border-2 transition-colors ${
+                          selectedImage === index
+                            ? 'border-blue-600'
+                            : 'border-transparent hover:border-gray-300'
+                        }`}
+                        style={{ width: 'calc(25% - 0.375rem)', minWidth: '100px' }}
+                      >
+                        <Image
+                          src={image}
+                          alt={`${product.name} - ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="10rem"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Scroll Right Button */}
+                  {images.length > 4 && (
+                    <button
+                      onClick={() => {
+                        if (thumbnailScrollRef.current) {
+                          thumbnailScrollRef.current.scrollBy({ left: 120, behavior: 'smooth' });
+                        }
+                      }}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 rounded-full p-1 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      aria-label="Scroll right"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -479,10 +555,7 @@ export default function ProductDetailPage() {
                   <span className="text-4xl font-bold text-red-600">
                     {(() => {
                       if (product.variants && product.variants.length > 0 && selectedVariant) {
-                        const currentVariant = product.variants.find(v => 
-                          v.size === selectedVariant.size && 
-                          v.color === selectedVariant.color
-                        );
+                        const currentVariant = findVariant(product.variants, selectedVariant, product.category);
                         return currentVariant 
                           ? currentVariant.price.toLocaleString('vi-VN')
                           : product.price.toLocaleString('vi-VN');
@@ -532,94 +605,261 @@ export default function ProductDetailPage() {
               {/* Variants Selection */}
               {product.variants && product.variants.length > 0 && (
                 <div className="space-y-4">
-                  {/* Size Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Size:
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(new Set(product.variants!.map(v => v.size))).map((size) => {
-                        // Check if this size has any available variant (regardless of color)
-                        const hasAnyVariant = product.variants!.some(v => 
-                          v.size === size && v.quantity > 0
-                        );
-                        
-                        // Check if this size is available with current color (for visual feedback)
-                        const isAvailableWithCurrentColor = selectedVariant?.color
-                          ? product.variants!.some(v => 
-                              v.size === size && 
-                              v.color === selectedVariant.color && 
-                              v.quantity > 0
-                            )
-                          : true;
-                        
-                        const isSelected = selectedVariant?.size === size;
-                        
-                        return (
-                          <button
-                            key={size}
-                            type="button"
-                            onClick={() => {
-                              if (!product.variants) return;
+                  {/* Size - Chỉ hiển thị nếu có data */}
+                  {(() => {
+                    const hasSize = product.variants!.some(v => v.size && v.size.trim() !== '');
+                    if (!hasSize) return null;
+
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Size:
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from(new Set(product.variants!.map(v => v.size).filter(s => s && s.trim() !== ''))).map((size) => {
+                              // Kiểm tra xem size này có variant khả dụng với các lựa chọn hiện tại không
+                              let hasAnyVariant = false;
                               
-                              // Find a variant with this size
-                              let newVariant = selectedVariant?.color
-                                ? product.variants!.find(v => 
-                                    v.size === size && 
+                              if (selectedVariant?.color && selectedVariant?.attribute) {
+                                // Nếu đã chọn cả color và attribute, kiểm tra tổ hợp size + color + attribute
+                                hasAnyVariant = product.variants!.some(v =>
+                                  v.size === size &&
+                                  v.color === selectedVariant.color &&
+                                  (v as any).attribute === selectedVariant.attribute &&
+                                  v.quantity > 0
+                                );
+                              } else if (selectedVariant?.color) {
+                                // Nếu đã chọn color, kiểm tra tổ hợp size + color
+                                hasAnyVariant = product.variants!.some(v =>
+                                  v.size === size &&
+                                  v.color === selectedVariant.color &&
+                                  v.quantity > 0
+                                );
+                              } else if (selectedVariant?.attribute) {
+                                // Nếu đã chọn attribute, kiểm tra tổ hợp size + attribute
+                                hasAnyVariant = product.variants!.some(v =>
+                                  v.size === size &&
+                                  (v as any).attribute === selectedVariant.attribute &&
+                                  v.quantity > 0
+                                );
+                              } else {
+                                // Chưa chọn gì, kiểm tra xem size này có variant nào khả dụng không
+                                hasAnyVariant = product.variants!.some(v =>
+                                  v.size === size && v.quantity > 0
+                                );
+                              }
+
+                              // Check if this size is available with current color (for visual feedback)
+                              const isAvailableWithCurrentColor = selectedVariant?.color
+                                ? product.variants!.some(v =>
+                                    v.size === size &&
                                     v.color === selectedVariant.color &&
                                     v.quantity > 0
                                   )
-                                : product.variants!.find(v => 
-                                    v.size === size && 
-                                    v.quantity > 0
-                                  );
+                                : true;
+
+                              const isSelected = selectedVariant?.size === size;
+
+                              return (
+                                <button
+                                  key={size}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!hasAnyVariant || !product.variants) return;
+
+                                    // Find a variant with this size
+                                    let newVariant = selectedVariant?.color
+                                      ? product.variants!.find(v =>
+                                          v.size === size &&
+                                          v.color === selectedVariant.color &&
+                                          v.quantity > 0
+                                        )
+                                      : product.variants!.find(v =>
+                                          v.size === size &&
+                                          v.quantity > 0
+                                        );
+
+                                    // If no variant with current color, find first available color for this size
+                                    if (!newVariant) {
+                                      newVariant = product.variants!.find(v =>
+                                        v.size === size &&
+                                        v.quantity > 0
+                                      );
+                                    }
+
+                                    if (newVariant) {
+                                      setSelectedVariant({
+                                        size: newVariant.size,
+                                        color: newVariant.color,
+                                        material: newVariant.material,
+                                        ...((newVariant as any).attribute && { attribute: (newVariant as any).attribute })
+                                      });
+                                    }
+                                  }}
+                                  disabled={!hasAnyVariant}
+                                  style={{ pointerEvents: !hasAnyVariant ? 'none' : 'auto' }}
+                                  className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                                    isSelected
+                                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                      : hasAnyVariant
+                                      ? isAvailableWithCurrentColor
+                                        ? 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                        : 'border-orange-300 dark:border-orange-600 hover:border-orange-400 dark:hover:border-orange-500 bg-orange-50/50 dark:bg-orange-900/10'
+                                      : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
+                                  }`}
+                                  title={
+                                    !isAvailableWithCurrentColor && hasAnyVariant
+                                      ? 'Chọn size này sẽ tự động chuyển sang màu khác'
+                                      : ''
+                                  }
+                                >
+                                  {size}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                    );
+                  })()}
+
+                  {(() => {
+                    const hasAttribute = product.variants!.some(v => (v as any).attribute && (v as any).attribute.trim() !== '');
+                    if (!hasAttribute) return null;
+
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Loại:
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from(
+                            new Set(
+                              product.variants!
+                                .map(v => (v as any).attribute)
+                                .filter((a: string) => a && a.trim() !== '')
+                            )
+                          ).map((attribute) => {
+                              const isSelected =
+                                selectedVariant && (selectedVariant as any).attribute === attribute;
                               
-                              // If no variant with current color, find first available color for this size
-                              if (!newVariant) {
-                                newVariant = product.variants!.find(v => 
-                                  v.size === size && 
+                              // Kiểm tra xem attribute này có variant khả dụng với các lựa chọn hiện tại không
+                              let hasAnyVariant = false;
+                              
+                              if (selectedVariant?.size && selectedVariant?.color) {
+                                // Nếu đã chọn cả size và color, kiểm tra tổ hợp attribute + size + color
+                                hasAnyVariant = product.variants!.some(v =>
+                                  (v as any).attribute === attribute &&
+                                  v.size === selectedVariant.size &&
+                                  v.color === selectedVariant.color &&
                                   v.quantity > 0
                                 );
+                              } else if (selectedVariant?.size) {
+                                // Nếu đã chọn size, kiểm tra tổ hợp attribute + size
+                                hasAnyVariant = product.variants!.some(v =>
+                                  (v as any).attribute === attribute &&
+                                  v.size === selectedVariant.size &&
+                                  v.quantity > 0
+                                );
+                              } else if (selectedVariant?.color) {
+                                // Nếu đã chọn color, kiểm tra tổ hợp attribute + color
+                                hasAnyVariant = product.variants!.some(v =>
+                                  (v as any).attribute === attribute &&
+                                  v.color === selectedVariant.color &&
+                                  v.quantity > 0
+                                );
+                              } else {
+                                // Chưa chọn gì, kiểm tra xem attribute này có variant nào khả dụng không
+                                hasAnyVariant = product.variants!.some(
+                                  v => (v as any).attribute === attribute && v.quantity > 0
+                                );
                               }
-                              
-                              if (newVariant) {
-                                setSelectedVariant({
-                                  size: newVariant.size,
-                                  color: newVariant.color,
-                                  material: newVariant.material
-                                });
-                              }
-                            }}
-                            disabled={!hasAnyVariant}
-                            className={`px-4 py-2 rounded-lg border-2 transition-colors ${
-                              isSelected
-                                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                                : hasAnyVariant
-                                ? isAvailableWithCurrentColor
-                                  ? 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                                  : 'border-orange-300 dark:border-orange-600 hover:border-orange-400 dark:hover:border-orange-500 bg-orange-50/50 dark:bg-orange-900/10'
-                                : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
-                            }`}
-                            title={!isAvailableWithCurrentColor && hasAnyVariant ? 'Chọn size này sẽ tự động chuyển sang màu khác' : ''}
-                          >
-                            {size}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  {/* Color Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Màu sắc:
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(new Set(product.variants!.map(v => v.color))).map((color) => {
-                        // Check if this color has any available variant (regardless of size)
-                        const hasAnyVariant = product.variants!.some(v => 
-                          v.color === color && v.quantity > 0
-                        );
+                              return (
+                                <button
+                                  key={attribute}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!hasAnyVariant || !product.variants) return;
+
+                                    const newVariant = product.variants!.find(
+                                      v =>
+                                        (v as any).attribute === attribute &&
+                                        v.quantity > 0
+                                    );
+
+                                    if (newVariant) {
+                                      setSelectedVariant({
+                                        size: newVariant.size || '',
+                                        color: newVariant.color || '',
+                                        material: newVariant.material || '',
+                                        ...(newVariant as any).attribute && {
+                                          attribute: (newVariant as any).attribute,
+                                        },
+                                      } as any);
+                                    }
+                                  }}
+                                  disabled={!hasAnyVariant}
+                                  style={{ pointerEvents: !hasAnyVariant ? 'none' : 'auto' }}
+                                  className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                                    isSelected
+                                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                      : hasAnyVariant
+                                      ? 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                      : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {attribute}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                    );
+                  })()}
+
+                  {/* Color Selection - Chỉ hiển thị nếu có variant có color */}
+                  {(() => {
+                    const hasColor = product.variants!.some(v => v.color && v.color.trim() !== '');
+                    if (!hasColor) return null;
+                    
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Màu sắc:
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from(new Set(product.variants!.map(v => v.color).filter(c => c && c.trim() !== ''))).map((color) => {
+                        // Kiểm tra xem color này có variant khả dụng với các lựa chọn hiện tại không
+                        let hasAnyVariant = false;
+                        
+                        if (selectedVariant?.size && selectedVariant?.attribute) {
+                          // Nếu đã chọn cả size và attribute, kiểm tra tổ hợp color + size + attribute
+                          hasAnyVariant = product.variants!.some(v =>
+                            v.color === color &&
+                            v.size === selectedVariant.size &&
+                            (v as any).attribute === selectedVariant.attribute &&
+                            v.quantity > 0
+                          );
+                        } else if (selectedVariant?.size) {
+                          // Nếu đã chọn size, kiểm tra tổ hợp color + size
+                          hasAnyVariant = product.variants!.some(v =>
+                            v.color === color &&
+                            v.size === selectedVariant.size &&
+                            v.quantity > 0
+                          );
+                        } else if (selectedVariant?.attribute) {
+                          // Nếu đã chọn attribute, kiểm tra tổ hợp color + attribute
+                          hasAnyVariant = product.variants!.some(v =>
+                            v.color === color &&
+                            (v as any).attribute === selectedVariant.attribute &&
+                            v.quantity > 0
+                          );
+                        } else {
+                          // Chưa chọn gì, kiểm tra xem color này có variant nào khả dụng không
+                          hasAnyVariant = product.variants!.some(v => 
+                            v.color === color && v.quantity > 0
+                          );
+                        }
                         
                         // Check if this color is available with current size (for visual feedback)
                         const isAvailableWithCurrentSize = selectedVariant?.size
@@ -637,7 +877,7 @@ export default function ProductDetailPage() {
                             key={color}
                             type="button"
                             onClick={() => {
-                              if (!product.variants) return;
+                              if (!hasAnyVariant || !product.variants) return;
                               
                               // Find a variant with this color
                               let newVariant = selectedVariant?.size
@@ -663,11 +903,13 @@ export default function ProductDetailPage() {
                                 setSelectedVariant({
                                   size: newVariant.size,
                                   color: newVariant.color,
-                                  material: newVariant.material
+                                  material: newVariant.material,
+                                  ...((newVariant as any).attribute && { attribute: (newVariant as any).attribute })
                                 });
                               }
                             }}
                             disabled={!hasAnyVariant}
+                            style={{ pointerEvents: !hasAnyVariant ? 'none' : 'auto' }}
                             className={`px-4 py-2 rounded-lg border-2 transition-colors ${
                               isSelected
                                 ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
@@ -685,13 +927,7 @@ export default function ProductDetailPage() {
                       })}
                     </div>
                   </div>
-
-                  {selectedVariant && (() => {
-                    const currentVariant = product.variants!.find(v => 
-                      v.size === selectedVariant.size && 
-                      v.color === selectedVariant.color
                     );
-                    if (!currentVariant) return null;
                   })()}
                 </div>
               )}
@@ -702,10 +938,7 @@ export default function ProductDetailPage() {
                 <span className={`font-medium ${
                   (() => {
                     if (product.variants && product.variants.length > 0 && selectedVariant) {
-                      const currentVariant = product.variants.find(v => 
-                        v.size === selectedVariant.size && 
-                        v.color === selectedVariant.color
-                      );
+                      const currentVariant = findVariant(product.variants, selectedVariant, product.category);
                       return currentVariant && currentVariant.quantity > 0 ? 'text-green-600' : 'text-red-600';
                     }
                     return product.stock > 0 ? 'text-green-600' : 'text-red-600';
@@ -713,10 +946,7 @@ export default function ProductDetailPage() {
                 }`}>
                   {(() => {
                     if (product.variants && product.variants.length > 0 && selectedVariant) {
-                      const currentVariant = product.variants.find(v => 
-                        v.size === selectedVariant.size && 
-                        v.color === selectedVariant.color
-                      );
+                      const currentVariant = findVariant(product.variants, selectedVariant, product.category);
                       return currentVariant 
                         ? (currentVariant.quantity > 0 ? `Còn ${currentVariant.quantity} sản phẩm` : 'Hết hàng')
                         : 'Vui lòng chọn loại sản phẩm';
@@ -1006,5 +1236,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

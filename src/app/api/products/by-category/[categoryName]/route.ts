@@ -36,11 +36,18 @@ export async function GET(
     
     // Forward pagination params (page, limit) to backend
     const paginationParams: string[] = [];
-    if (searchParams.get('page')) {
-      paginationParams.push(`page=${searchParams.get('page')}`);
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+    
+    console.log(`[ProductsCategoryAPI] Received query params - page: ${pageParam}, limit: ${limitParam}`);
+    console.log(`[ProductsCategoryAPI] All search params:`, Array.from(searchParams.entries()));
+    
+    // Always forward page and limit if provided (check for null, not falsy)
+    if (pageParam !== null && pageParam !== '') {
+      paginationParams.push(`page=${pageParam}`);
     }
-    if (searchParams.get('limit')) {
-      paginationParams.push(`limit=${searchParams.get('limit')}`);
+    if (limitParam !== null && limitParam !== '') {
+      paginationParams.push(`limit=${limitParam}`);
     }
     
     // Forward other query params (search, sortBy, sortOrder, etc.)
@@ -58,6 +65,14 @@ export async function GET(
     // Get auth header (optional for public endpoint)
     const authHeader = getAuthHeader(request);
     
+    console.log(`[ProductsCategoryAPI] Query params received:`, {
+      page: pageParam,
+      limit: limitParam,
+      sortBy: searchParams.get('sortBy'),
+      sortOrder: searchParams.get('sortOrder')
+    });
+    console.log(`[ProductsCategoryAPI] Built pagination params:`, paginationParams);
+    console.log(`[ProductsCategoryAPI] Final endpoint: ${endpoint}`);
     console.log(`[ProductsCategoryAPI] Forwarding GET request to backend: ${BACKEND_URL}${endpoint}`);
     
     const forwardHeaders: Record<string, string> = {

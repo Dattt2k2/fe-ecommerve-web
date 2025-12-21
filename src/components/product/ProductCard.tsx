@@ -102,11 +102,6 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
                 <div className="flex flex-col">
                   <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     {formatPrice(displayPrice)}
-                    {hasMultiplePrices && (
-                      <span className="text-sm text-gray-500 ml-1">
-                        ~ {formatPrice(Math.max(...(product.variants?.map(v => v.price) || [0])))}
-                      </span>
-                    )}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-500">
                     Còn {displayStock} sản phẩm
@@ -209,11 +204,6 @@ export default function ProductCard({ product, viewMode = 'grid' }: ProductCardP
           <div className="flex flex-col">
             <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
               {formatPrice(displayPrice)}
-              {hasMultiplePrices && (
-                <span className="text-sm text-gray-500 ml-1">
-                  ~ {formatPrice(Math.max(...(product.variants?.map(v => v.price) || [0])))}
-                </span>
-              )}
             </span>
             {product.variants && product.variants.length > 0 && (
               <span className="text-xs text-gray-500 mt-0.5">

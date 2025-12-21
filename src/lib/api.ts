@@ -759,7 +759,7 @@ export const productsAPI = {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, String(value));
         }
       });
@@ -767,6 +767,9 @@ export const productsAPI = {
     
     const queryString = queryParams.toString();
     const endpoint = `/api/products/by-category/${encodedCategoryName}${queryString ? `?${queryString}` : ''}`;
+    
+    console.log(`[getProductsByCategory] Calling endpoint: ${endpoint}`);
+    console.log(`[getProductsByCategory] Params:`, params);
     
     try {
       const response = await fetch(endpoint, {

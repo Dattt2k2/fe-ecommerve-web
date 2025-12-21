@@ -23,7 +23,7 @@ export default function ProductsPage() {
   const [totalProducts, setTotalProducts] = useState(0);
 
   // Fetch categories
-  const { data: categoriesData } = useCategoryList();
+  const { data: categoriesData, loading: categoriesLoading } = useCategoryList();
   const categories = Array.isArray(categoriesData)
   ? categoriesData.map((cat: any) =>
       typeof cat === 'string' ? { id: cat, name: cat } : { id: cat.id, name: cat.name }
@@ -188,18 +188,18 @@ export default function ProductsPage() {
       page: currentPage,
       limit: productsPerPage,
     };
-    
+
     // Add sorting
-    if (sortBy === 'price-low') {
+    if (sortBy === 'price-low' as string) {
       params.sortBy = 'price';
       params.sortOrder = 'asc';
-    } else if (sortBy === 'price-high') {
+    } else if (sortBy === 'price-high' as string) {
       params.sortBy = 'price';
       params.sortOrder = 'desc';
-    } else if (sortBy === 'rating') {
+    } else if (sortBy === 'rating' as string) {
       params.sortBy = 'rating';
       params.sortOrder = 'desc';
-    } else if (sortBy === 'reviews') {
+    } else if (sortBy === 'reviews' as string) {
       params.sortBy = 'reviews';
       params.sortOrder = 'desc';
     } else {
@@ -241,17 +241,37 @@ export default function ProductsPage() {
     ? categoryResponse 
     : (shouldUseSearchAdvanced ? searchResponse : regularResponse);
   
+  // Track if we've ever received a response (to distinguish between "loading" and "no products")
+  const [hasReceivedResponse, setHasReceivedResponse] = useState(false);
+  
+  // Reset hasReceivedResponse when filters change
+  useEffect(() => {
+    setHasReceivedResponse(false);
+  }, [shouldUseCategoryAPI, shouldUseSearchAdvanced, selectedCategory?.name, searchQuery, filterBy, priceRange, sortBy, currentPage]);
+  
+  useEffect(() => {
+    if (productsResponse !== undefined && productsResponse !== null) {
+      setHasReceivedResponse(true);
+    }
+  }, [productsResponse]);
+
   // Only show loading for the API that's actually being used
-  // Don't show loading if we're switching between APIs (to avoid flicker)
+  // Show loading if currently loading OR if we haven't received any response yet
+  // Also show loading if categories are loading and we need category for API selection
   const productsLoading = useMemo(() => {
+    // If categories are loading and we have category in URL, show loading
+    if (categoriesLoading && categoryNameFromUrl) {
+      return true;
+    }
+    
     if (shouldUseCategoryAPI) {
-      return categoryLoading && !categoryResponse; // Only show loading if no data yet
+      return categoryLoading || (!hasReceivedResponse && categoryResponse === undefined);
     }
     if (shouldUseSearchAdvanced) {
-      return searchLoading && !searchResponse; // Only show loading if no data yet
+      return searchLoading || (!hasReceivedResponse && searchResponse === undefined);
     }
-    return regularLoading && !regularResponse; // Only show loading if no data yet
-  }, [shouldUseCategoryAPI, shouldUseSearchAdvanced, categoryLoading, categoryResponse, searchLoading, searchResponse, regularLoading, regularResponse]);
+    return regularLoading || (!hasReceivedResponse && regularResponse === undefined);
+  }, [shouldUseCategoryAPI, shouldUseSearchAdvanced, categoryLoading, categoryResponse, searchLoading, searchResponse, regularLoading, regularResponse, hasReceivedResponse, categoriesLoading, categoryNameFromUrl]);
 
   // Map products data
   const products = useMemo(() => {
@@ -316,13 +336,19 @@ export default function ProductsPage() {
   }, [productsResponse]);
 
   const totalPages = useMemo(() => {
+    // Use pages from API if available
     if (productsResponse?.pagination?.pages) {
       return productsResponse.pagination.pages;
     }
-    if (productsResponse?.pagination?.total && productsPerPage > 0) {
-      return Math.ceil(productsResponse.pagination.total / productsPerPage);
+    
+    // Otherwise calculate from total
+    const total = productsResponse?.pagination?.total || totalProducts || 0;
+    if (total === 0) return 1;
+    
+    if (productsPerPage > 0) {
+      return Math.ceil(total / productsPerPage);
     }
-    return Math.ceil(totalProducts / productsPerPage) || 1;
+    return 1;
   }, [productsResponse?.pagination, productsPerPage, totalProducts]);
 
   // Helper function to format number with dots
@@ -359,15 +385,6 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Sản phẩm
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Khám phá bộ sưu tập sản phẩm đa dạng với giá tốt nhất
-            </p>
-          </div>
 
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="lg:w-1/4">
@@ -536,7 +553,12 @@ export default function ProductsPage() {
               </div>
 
               {/* Products Grid/List */}
-              {products.length > 0 ? (
+              {productsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Đang tải sản phẩm...</p>
+                </div>
+              ) : products.length > 0 ? (
                 <>
                   <div className={
                     viewMode === 'grid'
@@ -553,7 +575,7 @@ export default function ProductsPage() {
                   </div>
 
                   {/* Pagination */}
-                  {totalPages > 1 && (
+                  {totalPages > 1 && (productsResponse?.pagination?.has_next || currentPage < totalPages) && (
                     <div className="mt-8 flex items-center justify-center gap-4">
                       <button
                         onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}

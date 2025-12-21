@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
       paginationParams.push(`limit=${searchParams.get('limit')}`);
     }
     
-    // Forward other query params (search, sortBy, sortOrder, etc.)
-    const otherParams = ['search', 'sortBy', 'sortOrder'];
+    // Forward other query params (search, sortBy, sortOrder, category, etc.)
+    const otherParams = ['search', 'sortBy', 'sortOrder', 'category'];
     otherParams.forEach(param => {
       if (searchParams.get(param)) {
         paginationParams.push(`${param}=${encodeURIComponent(searchParams.get(param)!)}`);

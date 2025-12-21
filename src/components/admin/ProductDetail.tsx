@@ -272,7 +272,7 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                 key={index}
                 src={image}
                 alt={`${product.name} ${index + 1}`}
-                className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+                className="w-full h-48 object-fit rounded-lg border border-gray-200 dark:border-gray-600"
               />
             ))}
           </div>
